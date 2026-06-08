@@ -681,6 +681,19 @@ function DashboardCustomizer({ state, refresh }) {
   const [ttsEnabled, setTtsEnabled] = useState(false);
   const [ttsVolume, setTtsVolume] = useState(1);
   const [ttsLang, setTtsLang] = useState('km-KH');
+  const [ttsVoiceURI, setTtsVoiceURI] = useState('');
+  const [availableVoices, setAvailableVoices] = useState([]);
+
+  useEffect(() => {
+    const loadVoices = () => {
+      const voices = window.speechSynthesis.getVoices();
+      setAvailableVoices(voices);
+    };
+    loadVoices();
+    if (window.speechSynthesis.onvoiceschanged !== undefined) {
+      window.speechSynthesis.onvoiceschanged = loadVoices;
+    }
+  }, []);
 
   const [goalTitle, setGoalTitle] = useState('');
   const [goalTarget, setGoalTarget] = useState(500);
@@ -706,6 +719,7 @@ function DashboardCustomizer({ state, refresh }) {
       setTtsEnabled(state.settings.ttsEnabled || false);
       setTtsVolume(state.settings.ttsVolume ?? 1);
       setTtsLang(state.settings.ttsLang || 'km-KH');
+      setTtsVoiceURI(state.settings.ttsVoiceURI || '');
     }
     // settings root mapping for user credentials
     setBakongAccountId(state.settings?.bakongAccountId || '');
@@ -739,7 +753,8 @@ function DashboardCustomizer({ state, refresh }) {
           soundUrl,
           ttsEnabled,
           ttsVolume: parseFloat(ttsVolume),
-          ttsLang
+          ttsLang,
+          ttsVoiceURI
         })
       });
       refresh();
@@ -926,6 +941,17 @@ function DashboardCustomizer({ state, refresh }) {
                 <select value={ttsLang} onChange={e => setTtsLang(e.target.value)} style={{ width: '100%', padding: '8px', background: '#090a0f', color: '#fff', border: '1px solid var(--color-border)', borderRadius: '4px' }}>
                   <option value="km-KH">Khmer (km-KH)</option>
                   <option value="en-US">English (en-US)</option>
+                </select>
+              </div>
+              <div className="form-group">
+                <label>TTS Voice (Optional Clone / Browser Voice)</label>
+                <select value={ttsVoiceURI} onChange={e => setTtsVoiceURI(e.target.value)} style={{ width: '100%', padding: '8px', background: '#090a0f', color: '#fff', border: '1px solid var(--color-border)', borderRadius: '4px' }}>
+                  <option value="">-- Default Voice for Language --</option>
+                  {availableVoices.filter(v => v.lang.startsWith(ttsLang.split('-')[0]) || ttsLang === 'km-KH').map(v => (
+                    <option key={v.voiceURI} value={v.voiceURI}>
+                      {v.name} ({v.lang})
+                    </option>
+                  ))}
                 </select>
               </div>
               <div className="form-group" style={{ marginBottom: 0 }}>
@@ -1147,6 +1173,13 @@ function AlertBoxOverlay() {
         const utter = new SpeechSynthesisUtterance();
         utter.lang = nextAlert.settings?.ttsLang || 'km-KH';
         utter.volume = nextAlert.settings?.ttsVolume ?? 1;
+        
+        if (nextAlert.settings?.ttsVoiceURI) {
+          const voices = window.speechSynthesis.getVoices();
+          const selectedVoice = voices.find(v => v.voiceURI === nextAlert.settings.ttsVoiceURI);
+          if (selectedVoice) utter.voice = selectedVoice;
+        }
+
         if (nextAlert.amount) {
           utter.text = `${nextAlert.name} បានផ្ញើ ${nextAlert.amount} ដុល្លារ`;
           if (nextAlert.message) utter.text += `. ${nextAlert.message}`;

@@ -35,12 +35,37 @@
         "gifUrl": "",
         "soundUrl": "https://assets.mixkit.co/active_storage/sfx/2869/2869-84.wav",
         "bakongAccountId": "ven_tityaka1@bkrt",
-        "bakongToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkYXRhIjp7ImlkIjoiMjUzNjE1OGIwYTE5NDFlZiJ9LCJpYXQiOjE3Nzg2NjM5MTIsImV4cCI6MTc4NjQzOTkxMn0.awzrSwXWqAYLz8KWH3ZSqpZ9igkYWt2Waw1dOwE8Rg0"
+        "bakongToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkYXRhIjp7ImlkIjoiMjUzNjE1OGIwYTE5NDFlZiJ9LCJpYXQiOjE3Nzg2NjM5MTIsImV4cCI6MTc4NjQzOTkxMn0.awzrSwXWqAYLz8KWH3ZSqpZ9igkYWt2Waw1dOwE8Rg0",
+        "ttsEnabled": true,
+        "ttsVolume": 1,
+        "ttsLang": "km-KH"
       },
       "goal": {
         "title": "បង់",
         "target": 1200,
         "current": 0.11,
+        "active": true
+      }
+    },
+    {
+      "id": "3485ef49-66a4-4d7e-aa11-b77a746c357d",
+      "username": "kheangzz",
+      "password": "1a43e85842b0020c7444059a0f81bd3eb047160e638319ecb69c275d554a67b0",
+      "bakongAccountId": "",
+      "bakongToken": "",
+      "bakongEnv": "production",
+      "settings": {
+        "alertDuration": 7000,
+        "soundVolume": 0.8,
+        "followTextTemplate": "{name} joined the crew!",
+        "donationTextTemplate": "{name} sent {amount}!",
+        "gifUrl": "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExOHlmd3gydzZ2ZWZtcnkyMnQ2ZnQ2b2x2eHA0YWxxMW4xOXV0ZnpxOCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9cw/Wwddh1z09oD2r4kQyU/giphy.gif",
+        "soundUrl": "https://assets.mixkit.co/active_storage/sfx/2869/2869-84.wav"
+      },
+      "goal": {
+        "title": "Upgrade Mic",
+        "target": 500,
+        "current": 0,
         "active": true
       }
     }
