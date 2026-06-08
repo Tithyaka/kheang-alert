@@ -34,6 +34,7 @@ function migrateDB(db) {
     password: crypto.createHash('sha256').update('password123').digest('hex'),
     bakongAccountId: db.settings?.bakongAccountId || process.env.ACCOUNT || 'ven_tityaka1@bkrt',
     bakongToken: db.settings?.bakongToken || process.env.KHQR_TOKEN || '',
+    bakongEnv: db.settings?.bakongEnv || process.env.BAKONG_ENV || 'production',
     settings: {
       alertDuration: db.settings?.alertDuration || 7000,
       soundVolume: db.settings?.soundVolume ?? 0.8,
@@ -231,6 +232,7 @@ app.post('/api/auth/register', (req, res) => {
     password: crypto.createHash('sha256').update(password).digest('hex'),
     bakongAccountId: '',
     bakongToken: '',
+    bakongEnv: 'production',
     settings: {
       alertDuration: 7000,
       soundVolume: 0.8,
@@ -300,6 +302,9 @@ app.put('/api/settings', authenticateUser, (req, res) => {
   if (settingsUpdate.bakongToken) {
     db.users[userIndex].bakongToken = settingsUpdate.bakongToken;
   }
+  if (settingsUpdate.bakongEnv) {
+    db.users[userIndex].bakongEnv = settingsUpdate.bakongEnv;
+  }
 
   writeDB(db);
   
@@ -310,13 +315,14 @@ app.put('/api/settings', authenticateUser, (req, res) => {
 
 // Test Bakong Credentials and Connection
 app.post('/api/settings/test-bakong', authenticateUser, async (req, res) => {
-  const { bakongAccountId, bakongToken } = req.body;
+  const { bakongAccountId, bakongToken, bakongEnv } = req.body;
   if (!bakongAccountId || !bakongToken) {
     return res.status(400).json({ error: 'Account ID and Token are required for testing' });
   }
 
   const cleanAccountId = bakongAccountId.replace(/\s+/g, '');
   const cleanToken = bakongToken.replace(/\s+/g, '');
+  const env = bakongEnv || 'production';
 
   try {
     const individualInfo = new IndividualInfo(
@@ -347,7 +353,9 @@ app.post('/api/settings/test-bakong', authenticateUser, async (req, res) => {
 
     // Call NBC API to check transaction status to verify token validity
     const payload = JSON.stringify({ md5 });
-    const url = new URL("https://api-bakong.nbc.gov.kh/v1/check_transaction_by_md5");
+    const url = new URL(env === 'sandbox' 
+      ? "https://sit-api-bakong.nbc.gov.kh/v1/check_transaction_by_md5" 
+      : "https://api-bakong.nbc.gov.kh/v1/check_transaction_by_md5");
     
     const apiCall = () => new Promise((resolve, reject) => {
       const reqApi = https.request({
@@ -377,6 +385,12 @@ app.post('/api/settings/test-bakong', authenticateUser, async (req, res) => {
       return res.json({
         success: true,
         message: 'Bakong API Connection successful! Credentials are verified.'
+      });
+    } else if (apiResult.status === 403) {
+      return res.json({
+        success: true,
+        isBlocked: true,
+        message: 'Bakong API returned HTTP 403 (Geographical Block). Auto-checking will fall back to client-side verification.'
       });
     } else {
       let errorMsg = 'HTTP ' + apiResult.status;
@@ -431,10 +445,12 @@ app.post('/api/goal/reset', authenticateUser, (req, res) => {
 });
 
 // Helper function to query NBC Bakong Open API with specific token
-function checkTransactionOnBakongWithToken(md5Hash, token) {
+function checkTransactionOnBakongWithToken(md5Hash, token, env = 'production') {
   return new Promise((resolve, reject) => {
     const payload = JSON.stringify({ md5: md5Hash });
-    const url = new URL("https://api-bakong.nbc.gov.kh/v1/check_transaction_by_md5");
+    const url = new URL(env === 'sandbox' 
+      ? "https://sit-api-bakong.nbc.gov.kh/v1/check_transaction_by_md5" 
+      : "https://api-bakong.nbc.gov.kh/v1/check_transaction_by_md5");
     
     const req = https.request({
       hostname: url.hostname,
@@ -450,6 +466,10 @@ function checkTransactionOnBakongWithToken(md5Hash, token) {
       let data = "";
       res.on("data", (chunk) => { data += chunk; });
       res.on("end", () => {
+        if (res.statusCode === 403) {
+          resolve({ responseCode: 403, responseMessage: 'Forbidden (Geo-blocked)' });
+          return;
+        }
         try {
           resolve(JSON.parse(data));
         } catch (e) {
@@ -588,8 +608,22 @@ app.get('/api/donate/check/:md5', async (req, res) => {
 
     const rawToken = user.bakongToken || process.env.KHQR_TOKEN;
     const token = (rawToken || '').replace(/\s+/g, '');
-    const checkResponse = await checkTransactionOnBakongWithToken(md5, token);
+    const env = user.bakongEnv || 'production';
+    const checkResponse = await checkTransactionOnBakongWithToken(md5, token, env);
     
+    if (checkResponse && checkResponse.responseCode === 403) {
+      // Geo-blocked! Instruct frontend to check directly
+      const apiUrl = env === 'sandbox' 
+        ? "https://sit-api-bakong.nbc.gov.kh/v1/check_transaction_by_md5" 
+        : "https://api-bakong.nbc.gov.kh/v1/check_transaction_by_md5";
+      return res.json({
+        success: true,
+        status: 'check_client',
+        token: token,
+        apiUrl: apiUrl
+      });
+    }
+
     if (checkResponse && checkResponse.responseCode === 0) {
       const usdAmount = pending.currency === 'KHR' ? parseFloat((pending.amount / 4000).toFixed(2)) : pending.amount;
 
@@ -652,6 +686,76 @@ app.get('/api/donate/check/:md5', async (req, res) => {
   } catch (error) {
     console.error("Error checking transaction status:", error);
     res.status(500).json({ error: 'Failed to verify transaction status' });
+  }
+});
+
+// Confirm browser-verified transaction
+app.post('/api/donate/confirm', async (req, res) => {
+  const { md5 } = req.body;
+  if (!md5) {
+    return res.status(400).json({ error: 'MD5 hash is required' });
+  }
+
+  const pending = pendingDonations[md5];
+  if (!pending) {
+    return res.status(404).json({ error: 'Donation transaction not found or already processed' });
+  }
+
+  try {
+    const db = readDB();
+    const user = db.users.find(u => u.id === pending.userId);
+    if (!user) {
+      return res.status(404).json({ error: 'Streamer account not found' });
+    }
+
+    const usdAmount = pending.currency === 'KHR' ? parseFloat((pending.amount / 4000).toFixed(2)) : pending.amount;
+
+    const newDonation = {
+      id: uuidv4(),
+      userId: pending.userId,
+      name: pending.name,
+      amount: pending.amount,
+      currency: pending.currency,
+      message: pending.message,
+      timestamp: new Date().toISOString()
+    };
+
+    db.donations.push(newDonation);
+    
+    const userIndex = db.users.findIndex(u => u.id === pending.userId);
+    if (userIndex !== -1 && db.users[userIndex].goal && db.users[userIndex].goal.active) {
+      db.users[userIndex].goal.current = parseFloat((db.users[userIndex].goal.current + usdAmount).toFixed(2));
+    }
+
+    writeDB(db);
+    const state = computeState(pending.userId);
+
+    broadcast({
+      type: 'ALERT',
+      event: 'donation',
+      data: {
+        name: newDonation.name,
+        amount: newDonation.amount,
+        currency: newDonation.currency,
+        message: newDonation.message,
+        timestamp: newDonation.timestamp,
+        settings: user.settings
+      }
+    }, pending.username);
+
+    broadcast({ type: 'STATE_UPDATE', data: state }, pending.username);
+
+    delete pendingDonations[md5];
+
+    return res.json({
+      success: true,
+      status: 'paid',
+      donation: newDonation
+    });
+
+  } catch (error) {
+    console.error("Error confirming donation status:", error);
+    res.status(500).json({ error: 'Failed to confirm transaction status' });
   }
 });
 

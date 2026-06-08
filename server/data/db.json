@@ -17,7 +17,30 @@
       "goal": {
         "title": "Upgrade Stream Mic",
         "target": 500,
-        "current": 322,
+        "current": 337,
+        "active": true
+      }
+    },
+    {
+      "id": "79e8a950-0c2f-4e21-93c5-132b5ed280fc",
+      "username": "kheangg",
+      "password": "4654d793972c3b6a1d48fb0ab58d9cb0de46c3d33d605f9222c283dfaa12d420",
+      "bakongAccountId": "ven_tityaka1@bkrt",
+      "bakongToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkYXRhIjp7ImlkIjoiMjUzNjE1OGIwYTE5NDFlZiJ9LCJpYXQiOjE3Nzg2NjM5MTIsImV4cCI6MTc4NjQzOTkxMn0.awzrSwXWqAYLz8KWH3ZSqpZ9igkYWt2Waw1dOwE8Rg0",
+      "settings": {
+        "alertDuration": 7000,
+        "soundVolume": 0.8,
+        "followTextTemplate": "{name} joined the crew!",
+        "donationTextTemplate": "{name} sent {amount}!",
+        "gifUrl": "",
+        "soundUrl": "https://assets.mixkit.co/active_storage/sfx/2869/2869-84.wav",
+        "bakongAccountId": "ven_tityaka1@bkrt",
+        "bakongToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkYXRhIjp7ImlkIjoiMjUzNjE1OGIwYTE5NDFlZiJ9LCJpYXQiOjE3Nzg2NjM5MTIsImV4cCI6MTc4NjQzOTkxMn0.awzrSwXWqAYLz8KWH3ZSqpZ9igkYWt2Waw1dOwE8Rg0"
+      },
+      "goal": {
+        "title": "បង់",
+        "target": 1200,
+        "current": 0.11,
         "active": true
       }
     }
@@ -126,6 +149,33 @@
       "message": "Hi",
       "timestamp": "2026-06-08T07:49:14.093Z",
       "userId": "a4505978-bb71-433e-b738-b60e703f1294"
+    },
+    {
+      "id": "0cf3847d-27aa-4f7e-a3ac-921f81e61645",
+      "userId": "79e8a950-0c2f-4e21-93c5-132b5ed280fc",
+      "name": "Kheang",
+      "amount": 0.01,
+      "currency": "USD",
+      "message": "hi",
+      "timestamp": "2026-06-08T08:25:04.792Z"
+    },
+    {
+      "id": "18d41da6-fb73-4fee-ae13-c15174fdefdc",
+      "userId": "79e8a950-0c2f-4e21-93c5-132b5ed280fc",
+      "name": "Sithue Sith",
+      "amount": 0.1,
+      "currency": "USD",
+      "message": "Ah Pek Thay",
+      "timestamp": "2026-06-08T08:38:55.904Z"
+    },
+    {
+      "id": "04cdabb1-0e66-4d29-8627-d8db8a698c3a",
+      "userId": "a4505978-bb71-433e-b738-b60e703f1294",
+      "name": "Test Donor",
+      "amount": 15,
+      "currency": "USD",
+      "message": "Test confirm fallback",
+      "timestamp": "2026-06-08T08:46:29.855Z"
     }
   ],
   "followers": [

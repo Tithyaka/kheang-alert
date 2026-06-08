@@ -711,6 +711,7 @@ function DashboardCustomizer({ state, refresh }) {
 
   const [bakongAccountId, setBakongAccountId] = useState('');
   const [bakongToken, setBakongToken] = useState('');
+  const [bakongEnv, setBakongEnv] = useState('production');
   const [testingStatus, setTestingStatus] = useState('');
   const [testResult, setTestResult] = useState(null);
 
@@ -728,6 +729,7 @@ function DashboardCustomizer({ state, refresh }) {
     // settings root mapping for user credentials
     setBakongAccountId(state.settings?.bakongAccountId || '');
     setBakongToken(state.settings?.bakongToken || '');
+    setBakongEnv(state.settings?.bakongEnv || 'production');
     
     if (state.goal) {
       setGoalTitle(state.goal.title || '');
@@ -805,7 +807,8 @@ function DashboardCustomizer({ state, refresh }) {
         },
         body: JSON.stringify({
           bakongAccountId: bakongAccountId.replace(/\s+/g, ''),
-          bakongToken: bakongToken.replace(/\s+/g, '')
+          bakongToken: bakongToken.replace(/\s+/g, ''),
+          bakongEnv: bakongEnv
         })
       });
       refresh();
@@ -834,12 +837,48 @@ function DashboardCustomizer({ state, refresh }) {
         },
         body: JSON.stringify({
           bakongAccountId: bakongAccountId.replace(/\s+/g, ''),
-          bakongToken: bakongToken.replace(/\s+/g, '')
+          bakongToken: bakongToken.replace(/\s+/g, ''),
+          bakongEnv: bakongEnv
         })
       });
       const data = await response.json();
       if (response.ok && data.success) {
-        setTestResult({ success: true, message: data.message });
+        if (data.isBlocked) {
+          try {
+            const testPayload = JSON.stringify({ md5: "1234567890abcdef1234567890abcdef" });
+            const browserUrl = bakongEnv === 'sandbox' 
+              ? "https://sit-api-bakong.nbc.gov.kh/v1/check_transaction_by_md5"
+              : "https://api-bakong.nbc.gov.kh/v1/check_transaction_by_md5";
+            const browserRes = await fetch(browserUrl, {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${bakongToken.replace(/\s+/g, '')}`,
+                'Content-Type': 'application/json'
+              },
+              body: testPayload
+            });
+            const browserData = await browserRes.json();
+            if (browserRes.ok && browserData && (browserData.responseCode === 0 || browserData.responseCode === 1)) {
+              setTestResult({ 
+                success: true, 
+                message: 'Connection successful (verified via browser fallback)! Credentials are valid.' 
+              });
+            } else {
+              setTestResult({ 
+                success: false, 
+                message: `Verification via browser fallback failed: ${browserData?.responseMessage || 'Invalid API Token.'}` 
+              });
+            }
+          } catch (browserErr) {
+            console.error("Browser verification error:", browserErr);
+            setTestResult({ 
+              success: true, 
+              message: 'Server is geo-blocked. Token could not be checked from browser due to network error, but settings were saved.' 
+            });
+          }
+        } else {
+          setTestResult({ success: true, message: data.message });
+        }
       } else {
         setTestResult({ success: false, message: data.message || 'Verification request failed.' });
       }
@@ -941,7 +980,7 @@ function DashboardCustomizer({ state, refresh }) {
           Configure your personal Bakong credentials. These values are used to generate your payment QR codes.
         </p>
         
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.5fr', gap: '20px', marginBottom: '20px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1.5fr', gap: '20px', marginBottom: '20px' }}>
           <div className="form-group">
             <label>Bakong Account ID</label>
             <input 
@@ -953,13 +992,24 @@ function DashboardCustomizer({ state, refresh }) {
             />
           </div>
           <div className="form-group">
+            <label>Bakong API Env</label>
+            <select 
+              value={bakongEnv} 
+              onChange={e => setBakongEnv(e.target.value)}
+              style={{ height: '42px' }}
+            >
+              <option value="production">Production (Live)</option>
+              <option value="sandbox">Sandbox (Testing)</option>
+            </select>
+          </div>
+          <div className="form-group">
             <label>Bakong Open API Access Token (JWT Bearer)</label>
             <textarea 
               rows="2"
               value={bakongToken} 
               onChange={e => setBakongToken(e.target.value)} 
               placeholder="eyJhbGciOiJIUzI1Ni..."
-              style={{ fontSize: '12px', fontFamily: 'monospace' }}
+              style={{ fontSize: '12px', fontFamily: 'monospace', height: '42px', minHeight: '42px' }}
               required
             />
           </div>
@@ -1227,6 +1277,7 @@ function PublicDonationPage() {
   const [qrCodeOpen, setQrCodeOpen] = useState(false);
   const [success, setSuccess] = useState(false);
   const [qrDataUrl, setQrDataUrl] = useState('');
+  const [qrString, setQrString] = useState('');
   const [transactionMd5, setTransactionMd5] = useState('');
   const [timeLeft, setTimeLeft] = useState(300); // 5 minutes validity
   const [errorText, setErrorText] = useState('');
@@ -1286,24 +1337,72 @@ function PublicDonationPage() {
     let pollInterval;
     let timerInterval;
 
+    let clientVerifyToken = null;
+    let clientVerifyUrl = null;
+
     pollInterval = setInterval(async () => {
       try {
-        const response = await fetch(`/api/donate/check/${transactionMd5}`);
-        const data = await response.json();
-        
-        if (response.ok && data.success) {
-          if (data.status === 'paid') {
-            setSuccess(true);
-            setQrCodeOpen(false);
-            setTransactionMd5('');
-            setQrDataUrl('');
-            setName('');
-            setAmount('');
-            setMessage('');
-          } else if (data.status === 'failed') {
-            setErrorText(data.message || 'Payment processing failed.');
-            setQrCodeOpen(false);
-            setTransactionMd5('');
+        if (clientVerifyToken && clientVerifyUrl) {
+          const payload = JSON.stringify({ md5: transactionMd5 });
+          const clientRes = await fetch(clientVerifyUrl, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${clientVerifyToken}`,
+              'Content-Type': 'application/json'
+            },
+            body: payload
+          });
+          if (clientRes.ok) {
+            const clientData = await clientRes.json();
+            if (clientData && clientData.responseCode === 0) {
+              const confirmRes = await fetch(`/api/donate/confirm`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ md5: transactionMd5 })
+              });
+              const confirmData = await confirmRes.json();
+              if (confirmRes.ok && confirmData.success) {
+                setSuccess(true);
+                setQrCodeOpen(false);
+                setTransactionMd5('');
+                setQrDataUrl('');
+                setQrString('');
+                setName('');
+                setAmount('');
+                setMessage('');
+              }
+            } else if (clientData && clientData.responseCode === 1 && clientData.errorCode === 1) {
+              // Still pending
+            } else {
+              setErrorText(clientData?.responseMessage || 'Payment processing failed.');
+              setQrCodeOpen(false);
+              setTransactionMd5('');
+            }
+          }
+        } else {
+          const response = await fetch(`/api/donate/check/${transactionMd5}`);
+          const data = await response.json();
+          
+          if (response.ok && data.success) {
+            if (data.status === 'paid') {
+              setSuccess(true);
+              setQrCodeOpen(false);
+              setTransactionMd5('');
+              setQrDataUrl('');
+              setQrString('');
+              setName('');
+              setAmount('');
+              setMessage('');
+            } else if (data.status === 'check_client') {
+              clientVerifyToken = data.token;
+              clientVerifyUrl = data.apiUrl;
+            } else if (data.status === 'failed') {
+              setErrorText(data.message || 'Payment processing failed.');
+              setQrCodeOpen(false);
+              setTransactionMd5('');
+            }
           }
         }
       } catch (err) {
@@ -1375,6 +1474,7 @@ function PublicDonationPage() {
       const data = await response.json();
       if (response.ok && data.success) {
         setQrDataUrl(data.qrDataUrl);
+        setQrString(data.qrString || '');
         setTransactionMd5(data.md5);
         setTimeLeft(300); // Reset timer
         setQrCodeOpen(true);
@@ -1552,11 +1652,72 @@ function PublicDonationPage() {
         <div className="modal-overlay">
           <div className="modal-content" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', maxWidth: '420px', padding: '30px' }}>
             <h3 style={{ fontFamily: 'var(--font-display)', color: '#fff', fontSize: '22px', margin: '0 0 10px', textAlign: 'center' }}>
-              Scan to Pay with Bakong / KHQR
+              Scan to Pay with ABA, Acleda, Bakong & more
             </h3>
-            <p style={{ color: 'var(--color-text-secondary)', fontSize: '14px', textAlign: 'center', marginBottom: '20px' }}>
-              Scan the QR code using any banking app that supports KHQR to complete your donation to {streamerName}.
+            <p style={{ color: 'var(--color-text-secondary)', fontSize: '14px', textAlign: 'center', marginBottom: '16px' }}>
+              Scan the QR code using ABA Mobile, Acleda Mobile, Bakong, or any banking app in Cambodia that supports KHQR to complete your donation to {streamerName}.
             </p>
+            
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'center', marginBottom: '20px' }}>
+              {/* Bakong deep link: opens bakong app directly */}
+              {qrString && (
+                <a
+                  href={`https://api-bakong.nbc.gov.kh/v1/generate_deeplink_by_qr?qr=${encodeURIComponent(qrString)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    background: '#E21836',
+                    color: '#fff',
+                    padding: '8px 16px',
+                    borderRadius: '8px',
+                    fontSize: '13px',
+                    fontWeight: 'bold',
+                    textDecoration: 'none',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    boxShadow: '0 2px 10px rgba(226,24,54,0.4)',
+                    transition: 'opacity 0.2s'
+                  }}
+                >
+                  📱 Open in Bakong
+                </a>
+              )}
+              {/* ABA deep link: opens ABA Mobile with KHQR pre-filled */}
+              {qrString && (
+                <a
+                  href={`https://pay.ababank.com/khqr/${encodeURIComponent(qrString)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    background: '#005C8A',
+                    color: '#fff',
+                    padding: '8px 16px',
+                    borderRadius: '8px',
+                    fontSize: '13px',
+                    fontWeight: 'bold',
+                    textDecoration: 'none',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    boxShadow: '0 2px 10px rgba(0,92,138,0.4)',
+                    transition: 'opacity 0.2s'
+                  }}
+                >
+                  💳 Open in ABA
+                </a>
+              )}
+              <span style={{ 
+                background: '#0B3B60', 
+                color: '#fff', 
+                border: '1px solid #e5a93b',
+                padding: '8px 16px', 
+                borderRadius: '8px', 
+                fontSize: '13px', 
+                fontWeight: 'bold',
+                opacity: 0.7
+              }}>Acleda ✓</span>
+            </div>
             
             <div className="qr-code-img" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#fff', padding: '15px', borderRadius: '12px', boxShadow: '0 8px 30px rgba(0,0,0,0.5)', border: '2px solid var(--color-primary)' }}>
               {qrDataUrl ? (
