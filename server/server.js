@@ -128,7 +128,14 @@ app.get('/api/state', (req, res) => {
 // Update Settings
 app.put('/api/settings', (req, res) => {
   const db = readDB();
-  db.settings = { ...db.settings, ...req.body };
+  const settingsUpdate = { ...req.body };
+  if (settingsUpdate.bakongAccountId) {
+    settingsUpdate.bakongAccountId = settingsUpdate.bakongAccountId.replace(/\s+/g, '');
+  }
+  if (settingsUpdate.bakongToken) {
+    settingsUpdate.bakongToken = settingsUpdate.bakongToken.replace(/\s+/g, '');
+  }
+  db.settings = { ...db.settings, ...settingsUpdate };
   writeDB(db);
   
   const state = computeState();
@@ -143,10 +150,13 @@ app.post('/api/settings/test-bakong', async (req, res) => {
     return res.status(400).json({ error: 'Account ID and Token are required for testing' });
   }
 
+  const cleanAccountId = bakongAccountId.replace(/\s+/g, '');
+  const cleanToken = bakongToken.replace(/\s+/g, '');
+
   try {
     // Generate a quick test IndividualInfo structure
     const individualInfo = new IndividualInfo(
-      bakongAccountId,
+      cleanAccountId,
       "Test Connection",
       "Phnom Penh",
       {
@@ -182,7 +192,7 @@ app.post('/api/settings/test-bakong', async (req, res) => {
         path: url.pathname,
         method: "POST",
         headers: {
-          "Authorization": `Bearer ${bakongToken}`,
+          "Authorization": `Bearer ${cleanToken}`,
           "Content-Type": "application/json",
           "Content-Length": Buffer.byteLength(payload)
         }
@@ -244,7 +254,8 @@ app.put('/api/goal', (req, res) => {
 function checkTransactionOnBakong(md5Hash) {
   return new Promise((resolve, reject) => {
     const db = readDB();
-    const token = db.settings?.bakongToken || process.env.KHQR_TOKEN;
+    const rawToken = db.settings?.bakongToken || process.env.KHQR_TOKEN;
+    const token = (rawToken || '').replace(/\s+/g, '');
     const payload = JSON.stringify({ md5: md5Hash });
     const url = new URL("https://api-bakong.nbc.gov.kh/v1/check_transaction_by_md5");
     

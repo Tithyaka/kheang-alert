@@ -580,8 +580,8 @@ function DashboardCustomizer({ state, refresh }) {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          bakongAccountId: bakongAccountId.trim(),
-          bakongToken: bakongToken.trim()
+          bakongAccountId: bakongAccountId.replace(/\s+/g, ''),
+          bakongToken: bakongToken.replace(/\s+/g, '')
         })
       });
       refresh();
@@ -606,8 +606,8 @@ function DashboardCustomizer({ state, refresh }) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          bakongAccountId: bakongAccountId.trim(),
-          bakongToken: bakongToken.trim()
+          bakongAccountId: bakongAccountId.replace(/\s+/g, ''),
+          bakongToken: bakongToken.replace(/\s+/g, '')
         })
       });
       const data = await response.json();
