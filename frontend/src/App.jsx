@@ -13,9 +13,7 @@ import {
   Copy, 
   CheckCircle, 
   RefreshCw,
-  LogOut,
-  UserPlus,
-  LogIn
+  LogOut
 } from 'lucide-react';
 
 // --- CONFIG & UTILS ---
@@ -33,196 +31,11 @@ const formatCurrency = (val, currency = 'USD') => {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val || 0);
 };
 
-// --- AUTH PAGES ---
-function LoginPage() {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [errorMsg, setErrorMsg] = useState('');
-  const navigate = useNavigate();
-
-  useEffect(() => {
-    // If already logged in, redirect to dashboard
-    if (localStorage.getItem('username')) {
-      navigate('/');
-    }
-  }, [navigate]);
-
-  const handleLogin = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setErrorMsg('');
-    try {
-      const res = await fetch(`${API_BASE}/api/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password })
-      });
-      const data = await res.json();
-      if (res.ok && data.success) {
-        localStorage.setItem('username', data.username);
-        navigate('/');
-      } else {
-        setErrorMsg(data.error || 'Invalid username or password');
-      }
-    } catch (err) {
-      console.error(err);
-      setErrorMsg('Failed to connect to authentication server');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div style={{ background: '#090a0f', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-      <div className="donation-form-container" style={{ maxWidth: '400px' }}>
-        <div style={{ textAlign: 'center', marginBottom: '30px' }}>
-          <h2 style={{ fontFamily: 'var(--font-display)', color: '#fff', fontSize: '28px', textTransform: 'uppercase', marginBottom: '8px' }}>
-            KHEANG<span>ALERT</span> Login
-          </h2>
-          <p style={{ color: 'var(--color-text-secondary)' }}>Sign in to manage your streaming overlays & widgets</p>
-        </div>
-        <form onSubmit={handleLogin}>
-          <div className="form-group">
-            <label>Username</label>
-            <input 
-              type="text" 
-              value={username} 
-              onChange={e => setUsername(e.target.value)} 
-              required 
-              placeholder="Enter your username"
-              disabled={loading}
-            />
-          </div>
-          <div className="form-group">
-            <label>Password</label>
-            <input 
-              type="password" 
-              value={password} 
-              onChange={e => setPassword(e.target.value)} 
-              required 
-              placeholder="••••••••"
-              disabled={loading}
-            />
-          </div>
-          {errorMsg && (
-            <div style={{ color: 'var(--color-secondary)', fontSize: '13px', margin: '10px 0', fontWeight: 'bold' }}>
-              {errorMsg}
-            </div>
-          )}
-          <button type="submit" className="btn-primary" style={{ width: '100%', padding: '12px', fontSize: '15px', marginTop: '10px' }} disabled={loading}>
-            <LogIn size={18} /> {loading ? 'Logging in...' : 'Login'}
-          </button>
-        </form>
-        <div style={{ textAlign: 'center', marginTop: '20px', fontSize: '13px', color: 'var(--color-text-secondary)' }}>
-          Don't have an account? <Link to="/register" style={{ color: 'var(--color-primary)', fontWeight: 'bold' }}>Sign Up</Link>
-        </div>
-        <div style={{ textAlign: 'center', marginTop: '16px', fontSize: '12px', color: 'var(--color-text-muted)', borderTop: '1px solid var(--color-border)', paddingTop: '16px' }}>
-          <a href="https://t.me/KheangNubb" target="_blank" rel="noopener noreferrer"
-            style={{ color: '#29b6f6', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '5px', fontWeight: '500' }}>
-            ✈️ Contact Developer on Telegram
-          </a>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function RegisterPage() {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [errorMsg, setErrorMsg] = useState('');
-  const navigate = useNavigate();
-
-  const handleRegister = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setErrorMsg('');
-    try {
-      const res = await fetch(`${API_BASE}/api/auth/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password })
-      });
-      const data = await res.json();
-      if (res.ok && data.success) {
-        localStorage.setItem('username', data.username);
-        alert('Account created successfully! Default password is ' + password);
-        navigate('/');
-      } else {
-        setErrorMsg(data.error || 'Username may be taken or invalid');
-      }
-    } catch (err) {
-      console.error(err);
-      setErrorMsg('Failed to connect to authentication server');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div style={{ background: '#090a0f', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-      <div className="donation-form-container" style={{ maxWidth: '400px' }}>
-        <div style={{ textAlign: 'center', marginBottom: '30px' }}>
-          <h2 style={{ fontFamily: 'var(--font-display)', color: '#fff', fontSize: '28px', textTransform: 'uppercase', marginBottom: '8px' }}>
-            Join KHEANG<span>ALERT</span>
-          </h2>
-          <p style={{ color: 'var(--color-text-secondary)' }}>Create an account to configure your personal Bakong KHQR</p>
-        </div>
-        <form onSubmit={handleRegister}>
-          <div className="form-group">
-            <label>Username</label>
-            <input 
-              type="text" 
-              value={username} 
-              onChange={e => setUsername(e.target.value)} 
-              required 
-              placeholder="Choose a username (e.g. streamer1)"
-              disabled={loading}
-            />
-          </div>
-          <div className="form-group">
-            <label>Password</label>
-            <input 
-              type="password" 
-              value={password} 
-              onChange={e => setPassword(e.target.value)} 
-              required 
-              placeholder="Create password"
-              disabled={loading}
-            />
-          </div>
-          {errorMsg && (
-            <div style={{ color: 'var(--color-secondary)', fontSize: '13px', margin: '10px 0', fontWeight: 'bold' }}>
-              {errorMsg}
-            </div>
-          )}
-          <button type="submit" className="btn-accent" style={{ width: '100%', padding: '12px', fontSize: '15px', marginTop: '10px' }} disabled={loading}>
-            <UserPlus size={18} /> {loading ? 'Registering...' : 'Create Account'}
-          </button>
-        </form>
-        <div style={{ textAlign: 'center', marginTop: '20px', fontSize: '13px', color: 'var(--color-text-secondary)' }}>
-          Already have an account? <Link to="/login" style={{ color: 'var(--color-primary)', fontWeight: 'bold' }}>Log In</Link>
-        </div>
-        <div style={{ textAlign: 'center', marginTop: '16px', fontSize: '12px', color: 'var(--color-text-muted)', borderTop: '1px solid var(--color-border)', paddingTop: '16px' }}>
-          <a href="https://t.me/KheangNubb" target="_blank" rel="noopener noreferrer"
-            style={{ color: '#29b6f6', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '5px', fontWeight: '500' }}>
-            ✈️ Contact Developer on Telegram
-          </a>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // --- MAIN APP ROUTING ---
 export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
         <Route path="/overlays/alertbox" element={<AlertBoxOverlay />} />
         <Route path="/overlays/goal" element={<GoalOverlay />} />
         <Route path="/overlays/ticker" element={<TickerOverlay />} />
@@ -246,12 +59,13 @@ function DashboardLayout() {
     stats: { totalDonations: 0, topDonation: null, top5Donations: [], latestDonation: null, latestFollower: null }
   });
   const [loading, setLoading] = useState(true);
+  const [promptUsername, setPromptUsername] = useState('');
 
   const loggedInUser = localStorage.getItem('username');
 
   const fetchState = async () => {
     if (!loggedInUser) {
-      navigate('/login');
+      setLoading(false);
       return;
     }
     try {
@@ -259,21 +73,33 @@ function DashboardLayout() {
         headers: { 'X-Username': loggedInUser }
       });
       if (res.status === 401) {
-        localStorage.removeItem('username');
-        navigate('/login');
-        return;
+        // Automatically register the user if they don't exist since we removed the login page
+        const regRes = await fetch(`${API_BASE}/api/auth/register`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: loggedInUser, password: 'defaultpassword' })
+        });
+        if (regRes.ok) {
+           fetchState();
+           return;
+        } else {
+           localStorage.removeItem('username');
+           window.location.reload();
+           return;
+        }
       }
       const data = await res.json();
       setState(data);
       setLoading(false);
     } catch (err) {
       console.error('Error fetching state:', err);
+      setLoading(false);
     }
   };
 
   useEffect(() => {
     if (!loggedInUser) {
-      navigate('/login');
+      setLoading(false);
       return;
     }
 
@@ -298,13 +124,57 @@ function DashboardLayout() {
 
   const handleLogout = () => {
     localStorage.removeItem('username');
-    navigate('/login');
+    window.location.reload();
+  };
+
+  const handleUsernameSubmit = (e) => {
+    e.preventDefault();
+    if (promptUsername.trim()) {
+      localStorage.setItem('username', promptUsername.trim().toLowerCase());
+      window.location.reload();
+    }
   };
 
   if (loading) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', background: '#090a0f', color: '#00f0ff', fontFamily: 'Rajdhani', fontSize: '24px' }}>
         LOADING KHEANG ALERT...
+      </div>
+    );
+  }
+
+  if (!loggedInUser) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', background: '#090a0f' }}>
+        <div className="donation-form-container" style={{ maxWidth: '400px', width: '100%' }}>
+          <div style={{ textAlign: 'center', marginBottom: '30px' }}>
+            <h2 style={{ fontFamily: 'var(--font-display)', color: '#fff', fontSize: '28px', textTransform: 'uppercase', marginBottom: '8px' }}>
+              KHEANG<span>ALERT</span>
+            </h2>
+            <p style={{ color: 'var(--color-text-secondary)' }}>Enter your streamer username to continue</p>
+          </div>
+          <form onSubmit={handleUsernameSubmit}>
+            <div className="form-group">
+              <input 
+                type="text" 
+                value={promptUsername} 
+                onChange={e => setPromptUsername(e.target.value)} 
+                required 
+                placeholder="e.g. kheang"
+                autoFocus
+              />
+            </div>
+            <button type="submit" className="btn-primary" style={{ width: '100%', padding: '12px', fontSize: '15px', marginTop: '10px' }}>
+              Enter Dashboard
+            </button>
+          </form>
+          <div style={{ textAlign: 'center', marginTop: '20px', fontSize: '12px', color: 'var(--color-text-muted)', borderTop: '1px solid var(--color-border)', paddingTop: '16px' }}>
+            <a href="https://t.me/KheangNubb" target="_blank" rel="noopener noreferrer"
+              style={{ color: '#29b6f6', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '5px', fontWeight: '500' }}>
+              ✈️ Contact Developer on Telegram
+            </a>
+          </div>
+        </div>
       </div>
     );
   }
@@ -808,6 +678,10 @@ function DashboardCustomizer({ state, refresh }) {
   const [gifUrl, setGifUrl] = useState('');
   const [soundUrl, setSoundUrl] = useState('');
 
+  const [ttsEnabled, setTtsEnabled] = useState(false);
+  const [ttsVolume, setTtsVolume] = useState(1);
+  const [ttsLang, setTtsLang] = useState('km-KH');
+
   const [goalTitle, setGoalTitle] = useState('');
   const [goalTarget, setGoalTarget] = useState(500);
   const [goalCurrent, setGoalCurrent] = useState(0);
@@ -829,6 +703,9 @@ function DashboardCustomizer({ state, refresh }) {
       setDonationTextTemplate(state.settings.donationTextTemplate || '');
       setGifUrl(state.settings.gifUrl || '');
       setSoundUrl(state.settings.soundUrl || '');
+      setTtsEnabled(state.settings.ttsEnabled || false);
+      setTtsVolume(state.settings.ttsVolume ?? 1);
+      setTtsLang(state.settings.ttsLang || 'km-KH');
     }
     // settings root mapping for user credentials
     setBakongAccountId(state.settings?.bakongAccountId || '');
@@ -859,7 +736,10 @@ function DashboardCustomizer({ state, refresh }) {
           followTextTemplate,
           donationTextTemplate,
           gifUrl,
-          soundUrl
+          soundUrl,
+          ttsEnabled,
+          ttsVolume: parseFloat(ttsVolume),
+          ttsLang
         })
       });
       refresh();
@@ -1029,7 +909,32 @@ function DashboardCustomizer({ state, refresh }) {
             <label>Alert Sound URL (MP3/WAV)</label>
             <input type="text" value={soundUrl} onChange={e => setSoundUrl(e.target.value)} placeholder="https://..." />
           </div>
-          <button type="submit" className="btn-primary" style={{ width: '100%' }} disabled={updating}>
+          <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '10px' }}>
+            <input 
+              type="checkbox" 
+              checked={ttsEnabled} 
+              id="ttsEnabled"
+              onChange={e => setTtsEnabled(e.target.checked)} 
+              style={{ width: '20px', height: '20px', cursor: 'pointer' }}
+            />
+            <label htmlFor="ttsEnabled" style={{ margin: 0, cursor: 'pointer' }}>Enable TTS (Read messages aloud)</label>
+          </div>
+          {ttsEnabled && (
+            <div style={{ background: 'rgba(255,255,255,0.05)', padding: '15px', borderRadius: '8px', marginBottom: '15px' }}>
+              <div className="form-group">
+                <label>TTS Language</label>
+                <select value={ttsLang} onChange={e => setTtsLang(e.target.value)} style={{ width: '100%', padding: '8px', background: '#090a0f', color: '#fff', border: '1px solid var(--color-border)', borderRadius: '4px' }}>
+                  <option value="km-KH">Khmer (km-KH)</option>
+                  <option value="en-US">English (en-US)</option>
+                </select>
+              </div>
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label>TTS Volume (0.0 to 1.0)</label>
+                <input type="number" step="0.1" min="0" max="1" value={ttsVolume} onChange={e => setTtsVolume(e.target.value)} />
+              </div>
+            </div>
+          )}
+          <button type="submit" className="btn-primary" style={{ width: '100%', marginTop: '10px' }} disabled={updating}>
             Save Alert Settings
           </button>
         </form>
@@ -1236,6 +1141,20 @@ function AlertBoxOverlay() {
         const audio = new Audio(nextAlert.settings.soundUrl);
         audio.volume = nextAlert.settings.soundVolume ?? 0.8;
         audio.play().catch(e => console.error("Error playing audio:", e));
+      }
+
+      if (nextAlert.settings?.ttsEnabled) {
+        const utter = new SpeechSynthesisUtterance();
+        utter.lang = nextAlert.settings?.ttsLang || 'km-KH';
+        utter.volume = nextAlert.settings?.ttsVolume ?? 1;
+        if (nextAlert.amount) {
+          utter.text = `${nextAlert.name} បានផ្ញើ ${nextAlert.amount} ដុល្លារ`;
+          if (nextAlert.message) utter.text += `. ${nextAlert.message}`;
+        } else {
+          utter.text = `${nextAlert.name} បានតាមដាន`;
+        }
+        window.speechSynthesis.cancel();
+        window.speechSynthesis.speak(utter);
       }
 
       setTimeout(() => {
