@@ -117,6 +117,12 @@ function LoginPage() {
         <div style={{ textAlign: 'center', marginTop: '20px', fontSize: '13px', color: 'var(--color-text-secondary)' }}>
           Don't have an account? <Link to="/register" style={{ color: 'var(--color-primary)', fontWeight: 'bold' }}>Sign Up</Link>
         </div>
+        <div style={{ textAlign: 'center', marginTop: '16px', fontSize: '12px', color: 'var(--color-text-muted)', borderTop: '1px solid var(--color-border)', paddingTop: '16px' }}>
+          <a href="https://t.me/KheangNubb" target="_blank" rel="noopener noreferrer"
+            style={{ color: '#29b6f6', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '5px', fontWeight: '500' }}>
+            ✈️ Contact Developer on Telegram
+          </a>
+        </div>
       </div>
     </div>
   );
@@ -198,6 +204,12 @@ function RegisterPage() {
         </form>
         <div style={{ textAlign: 'center', marginTop: '20px', fontSize: '13px', color: 'var(--color-text-secondary)' }}>
           Already have an account? <Link to="/login" style={{ color: 'var(--color-primary)', fontWeight: 'bold' }}>Log In</Link>
+        </div>
+        <div style={{ textAlign: 'center', marginTop: '16px', fontSize: '12px', color: 'var(--color-text-muted)', borderTop: '1px solid var(--color-border)', paddingTop: '16px' }}>
+          <a href="https://t.me/KheangNubb" target="_blank" rel="noopener noreferrer"
+            style={{ color: '#29b6f6', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '5px', fontWeight: '500' }}>
+            ✈️ Contact Developer on Telegram
+          </a>
         </div>
       </div>
     </div>
@@ -1906,6 +1918,15 @@ function PublicDonationPage() {
           </div>
         </div>
       )}
+    </div>
+    {/* Floating Developer Contact Footer */}
+    <div style={{ textAlign: 'center', padding: '16px', fontSize: '12px', color: 'var(--color-text-muted)', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+      <a href="https://t.me/KheangNubb" target="_blank" rel="noopener noreferrer"
+        style={{ color: '#29b6f6', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '5px', fontWeight: '500' }}>
+        ✈️ Contact Developer on Telegram
+      </a>
+      <span style={{ margin: '0 8px', opacity: 0.3 }}>·</span>
+      <span>Powered by KheangAlert</span>
     </div>
   );
 }
