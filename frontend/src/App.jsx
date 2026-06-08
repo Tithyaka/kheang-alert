@@ -1654,6 +1654,7 @@ function PublicDonationPage() {
   }
 
   return (
+    <>
     <div style={{ background: '#090a0f', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
       {!success ? (
         <div className="donation-form-container">
@@ -1919,8 +1920,8 @@ function PublicDonationPage() {
         </div>
       )}
     </div>
-    {/* Floating Developer Contact Footer */}
-    <div style={{ textAlign: 'center', padding: '16px', fontSize: '12px', color: 'var(--color-text-muted)', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+    {/* Developer Contact Footer */}
+    <div style={{ textAlign: 'center', padding: '16px', fontSize: '12px', color: 'var(--color-text-muted)', borderTop: '1px solid rgba(255,255,255,0.05)', background: '#090a0f' }}>
       <a href="https://t.me/KheangNubb" target="_blank" rel="noopener noreferrer"
         style={{ color: '#29b6f6', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '5px', fontWeight: '500' }}>
         ✈️ Contact Developer on Telegram
@@ -1928,5 +1929,6 @@ function PublicDonationPage() {
       <span style={{ margin: '0 8px', opacity: 0.3 }}>·</span>
       <span>Powered by KheangAlert</span>
     </div>
+    </>
   );
 }
