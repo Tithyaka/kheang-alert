@@ -5,6 +5,7 @@ const WebSocket = require('ws');
 const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const { v4: uuidv4 } = require('uuid');
 const { BakongKHQR, khqrData, IndividualInfo } = require('bakong-khqr');
 const QRCode = require('qrcode');
@@ -23,18 +24,61 @@ const pendingDonations = {};
 app.use(cors());
 app.use(express.json());
 
+// Database Automated Migration
+function migrateDB(db) {
+  const defaultUserId = uuidv4();
+  const defaultUser = {
+    id: defaultUserId,
+    username: 'kheang',
+    // Default password: password123
+    password: crypto.createHash('sha256').update('password123').digest('hex'),
+    bakongAccountId: db.settings?.bakongAccountId || process.env.ACCOUNT || 'ven_tityaka1@bkrt',
+    bakongToken: db.settings?.bakongToken || process.env.KHQR_TOKEN || '',
+    settings: {
+      alertDuration: db.settings?.alertDuration || 7000,
+      soundVolume: db.settings?.soundVolume ?? 0.8,
+      followTextTemplate: db.settings?.followTextTemplate || '{name} joined the neon crew!',
+      donationTextTemplate: db.settings?.donationTextTemplate || '{name} sent {amount}!',
+      gifUrl: db.settings?.gifUrl || 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExOHlmd3gydzZ2ZWZtcnkyMnQ2ZnQ2b2x2eHA0YWxxMW4xOXV0ZnpxOCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9cw/Wwddh1z09oD2r4kQyU/giphy.gif',
+      soundUrl: db.settings?.soundUrl || 'https://assets.mixkit.co/active_storage/sfx/2869/2869-84.wav'
+    },
+    goal: db.goal || {
+      title: 'Upgrade Stream Mic',
+      target: 500,
+      current: 322,
+      active: true
+    }
+  };
+
+  const migrated = {
+    users: [defaultUser],
+    donations: (db.donations || []).map(d => ({ ...d, userId: defaultUserId })),
+    followers: (db.followers || []).map(f => ({ ...f, userId: defaultUserId }))
+  };
+  return migrated;
+}
+
 // Helper function to read DB
 function readDB() {
   try {
     if (!fs.existsSync(DB_PATH)) {
-      // Return default template if db.json is missing
-      return { settings: {}, goal: {}, donations: [], followers: [] };
+      const defaultData = { users: [], donations: [], followers: [] };
+      fs.writeFileSync(DB_PATH, JSON.stringify(defaultData, null, 2), 'utf8');
+      return defaultData;
     }
     const data = fs.readFileSync(DB_PATH, 'utf8');
-    return JSON.parse(data);
+    let db = JSON.parse(data);
+    
+    // Perform database migration if single-tenant structure is found
+    if (!db.users) {
+      console.log('Migrating database to multi-user format...');
+      db = migrateDB(db);
+      fs.writeFileSync(DB_PATH, JSON.stringify(db, null, 2), 'utf8');
+    }
+    return db;
   } catch (error) {
     console.error('Error reading database:', error);
-    return { settings: {}, goal: {}, donations: [], followers: [] };
+    return { users: [], donations: [], followers: [] };
   }
 }
 
@@ -47,54 +91,62 @@ function writeDB(data) {
   }
 }
 
-// Broadcast message to all connected WebSocket clients
-function broadcast(message) {
+// Broadcast message to all connected WebSocket clients matching the target username
+function broadcast(message, username) {
   const payload = JSON.stringify(message);
   wss.clients.forEach((client) => {
-    if (client.readyState === WebSocket.OPEN) {
+    if (client.readyState === WebSocket.OPEN && client.username === username) {
       client.send(payload);
     }
   });
 }
 
-// Compute statistics and metadata
-function computeState() {
+// Compute statistics and metadata scoped by user ID
+function computeState(userId) {
   const db = readDB();
+  const user = db.users.find(u => u.id === userId || u.username === userId);
+  if (!user) {
+    return { error: 'User not found' };
+  }
+
+  const userDonations = (db.donations || []).filter(d => d.userId === user.id);
+  const userFollowers = (db.followers || []).filter(f => f.userId === user.id);
   
   // Calculate top donation (normalize to USD for comparison)
   let topDonation = null;
-  if (db.donations && db.donations.length > 0) {
-    topDonation = db.donations.reduce((max, d) => {
+  if (userDonations.length > 0) {
+    topDonation = userDonations.reduce((max, d) => {
       const dUsd = d.currency === 'KHR' ? d.amount / 4000 : d.amount;
       const maxUsd = max.currency === 'KHR' ? max.amount / 4000 : max.amount;
       return dUsd > maxUsd ? d : max;
-    }, db.donations[0]);
+    }, userDonations[0]);
   }
 
   // Calculate latest donation
   let latestDonation = null;
-  if (db.donations && db.donations.length > 0) {
-    latestDonation = db.donations[db.donations.length - 1];
+  if (userDonations.length > 0) {
+    latestDonation = userDonations[userDonations.length - 1];
   }
 
   // Calculate latest follower
   let latestFollower = null;
-  if (db.followers && db.followers.length > 0) {
-    latestFollower = db.followers[db.followers.length - 1];
+  if (userFollowers.length > 0) {
+    latestFollower = userFollowers[userFollowers.length - 1];
   }
 
   // Calculate total donations amount (normalize KHR to USD at 1:4000)
-  const totalDonations = db.donations ? db.donations.reduce((sum, d) => {
+  const totalDonations = userDonations.reduce((sum, d) => {
     const amt = parseFloat(d.amount);
     const usdVal = d.currency === 'KHR' ? amt / 4000 : amt;
     return sum + usdVal;
-  }, 0) : 0;
+  }, 0);
 
   return {
-    settings: db.settings,
-    goal: db.goal,
-    donations: db.donations || [],
-    followers: db.followers || [],
+    username: user.username,
+    settings: user.settings,
+    goal: user.goal,
+    donations: userDonations,
+    followers: userFollowers,
     stats: {
       totalDonations,
       topDonation,
@@ -105,29 +157,133 @@ function computeState() {
 }
 
 // WebSocket Connection handler
-wss.on('connection', (ws) => {
+wss.on('connection', (ws, req) => {
   console.log('Overlay or Dashboard connected to WebSockets');
   
-  // Send current state on connection
-  ws.send(JSON.stringify({
-    type: 'INIT_STATE',
-    data: computeState()
-  }));
+  // Extract target username from query string
+  const urlParams = new URLSearchParams(req.url.split('?')[1] || '');
+  const username = urlParams.get('username');
+  ws.username = username;
+
+  if (username) {
+    const db = readDB();
+    const user = db.users.find(u => u.username === username.toLowerCase());
+    if (user) {
+      ws.send(JSON.stringify({
+        type: 'INIT_STATE',
+        data: computeState(user.id)
+      }));
+    } else {
+      ws.send(JSON.stringify({
+        type: 'ERROR',
+        message: `User ${username} not found`
+      }));
+    }
+  } else {
+    ws.send(JSON.stringify({
+      type: 'WARNING',
+      message: 'No username specified. Connect via ws://host/?username=xxx'
+    }));
+  }
 
   ws.on('close', () => {
     console.log('WebSocket client disconnected');
   });
 });
 
-// REST APIs
+// Middleware to authenticate user using X-Username header
+function authenticateUser(req, res, next) {
+  const username = req.headers['x-username'];
+  if (!username) {
+    return res.status(401).json({ error: 'Unauthorized: Missing X-Username header' });
+  }
+
+  const db = readDB();
+  const user = db.users.find(u => u.username === username.toLowerCase());
+  if (!user) {
+    return res.status(401).json({ error: 'Unauthorized: User not found' });
+  }
+
+  req.user = user;
+  next();
+}
+
+// --- AUTH APIs ---
+// Auth: Register
+app.post('/api/auth/register', (req, res) => {
+  const { username, password } = req.body;
+  if (!username || !password || username.trim() === '' || password.trim() === '') {
+    return res.status(400).json({ error: 'Username and password are required' });
+  }
+
+  const cleanUsername = username.trim().toLowerCase();
+  const db = readDB();
+
+  // Check if user already exists
+  if (db.users.find(u => u.username === cleanUsername)) {
+    return res.status(400).json({ error: 'Username is already taken' });
+  }
+
+  const newUserId = uuidv4();
+  const newUser = {
+    id: newUserId,
+    username: cleanUsername,
+    password: crypto.createHash('sha256').update(password).digest('hex'),
+    bakongAccountId: '',
+    bakongToken: '',
+    settings: {
+      alertDuration: 7000,
+      soundVolume: 0.8,
+      followTextTemplate: '{name} joined the crew!',
+      donationTextTemplate: '{name} sent {amount}!',
+      gifUrl: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExOHlmd3gydzZ2ZWZtcnkyMnQ2ZnQ2b2x2eHA0YWxxMW4xOXV0ZnpxOCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9cw/Wwddh1z09oD2r4kQyU/giphy.gif',
+      soundUrl: 'https://assets.mixkit.co/active_storage/sfx/2869/2869-84.wav'
+    },
+    goal: {
+      title: 'Upgrade Mic',
+      target: 500,
+      current: 0,
+      active: true
+    }
+  };
+
+  db.users.push(newUser);
+  writeDB(db);
+
+  res.json({ success: true, username: cleanUsername });
+});
+
+// Auth: Login
+app.post('/api/auth/login', (req, res) => {
+  const { username, password } = req.body;
+  if (!username || !password) {
+    return res.status(400).json({ error: 'Username and password are required' });
+  }
+
+  const cleanUsername = username.trim().toLowerCase();
+  const hashedPassword = crypto.createHash('sha256').update(password).digest('hex');
+  const db = readDB();
+
+  const user = db.users.find(u => u.username === cleanUsername && u.password === hashedPassword);
+  if (!user) {
+    return res.status(401).json({ error: 'Invalid username or password' });
+  }
+
+  res.json({ success: true, username: cleanUsername });
+});
+
+// --- REST APIs ---
 // Get full state
-app.get('/api/state', (req, res) => {
-  res.json(computeState());
+app.get('/api/state', authenticateUser, (req, res) => {
+  res.json(computeState(req.user.id));
 });
 
 // Update Settings
-app.put('/api/settings', (req, res) => {
+app.put('/api/settings', authenticateUser, (req, res) => {
   const db = readDB();
+  const userIndex = db.users.findIndex(u => u.id === req.user.id);
+  if (userIndex === -1) return res.status(404).json({ error: 'User not found' });
+
   const settingsUpdate = { ...req.body };
   if (settingsUpdate.bakongAccountId) {
     settingsUpdate.bakongAccountId = settingsUpdate.bakongAccountId.replace(/\s+/g, '');
@@ -135,16 +291,25 @@ app.put('/api/settings', (req, res) => {
   if (settingsUpdate.bakongToken) {
     settingsUpdate.bakongToken = settingsUpdate.bakongToken.replace(/\s+/g, '');
   }
-  db.settings = { ...db.settings, ...settingsUpdate };
+
+  db.users[userIndex].settings = { ...db.users[userIndex].settings, ...settingsUpdate };
+  
+  if (settingsUpdate.bakongAccountId) {
+    db.users[userIndex].bakongAccountId = settingsUpdate.bakongAccountId;
+  }
+  if (settingsUpdate.bakongToken) {
+    db.users[userIndex].bakongToken = settingsUpdate.bakongToken;
+  }
+
   writeDB(db);
   
-  const state = computeState();
-  broadcast({ type: 'STATE_UPDATE', data: state });
-  res.json({ success: true, settings: db.settings });
+  const state = computeState(req.user.id);
+  broadcast({ type: 'STATE_UPDATE', data: state }, req.user.username);
+  res.json({ success: true, settings: db.users[userIndex].settings });
 });
 
 // Test Bakong Credentials and Connection
-app.post('/api/settings/test-bakong', async (req, res) => {
+app.post('/api/settings/test-bakong', authenticateUser, async (req, res) => {
   const { bakongAccountId, bakongToken } = req.body;
   if (!bakongAccountId || !bakongToken) {
     return res.status(400).json({ error: 'Account ID and Token are required for testing' });
@@ -154,7 +319,6 @@ app.post('/api/settings/test-bakong', async (req, res) => {
   const cleanToken = bakongToken.replace(/\s+/g, '');
 
   try {
-    // Generate a quick test IndividualInfo structure
     const individualInfo = new IndividualInfo(
       cleanAccountId,
       "Test Connection",
@@ -210,7 +374,6 @@ app.post('/api/settings/test-bakong', async (req, res) => {
     const apiResult = await apiCall();
     
     if (apiResult.status === 200) {
-      // 200 means success connection and authentication (e.g. token is valid)
       return res.json({
         success: true,
         message: 'Bakong API Connection successful! Credentials are verified.'
@@ -240,22 +403,36 @@ app.post('/api/settings/test-bakong', async (req, res) => {
 });
 
 // Update Goal Settings
-app.put('/api/goal', (req, res) => {
+app.put('/api/goal', authenticateUser, (req, res) => {
   const db = readDB();
-  db.goal = { ...db.goal, ...req.body };
+  const userIndex = db.users.findIndex(u => u.id === req.user.id);
+  if (userIndex === -1) return res.status(404).json({ error: 'User not found' });
+
+  db.users[userIndex].goal = { ...db.users[userIndex].goal, ...req.body };
   writeDB(db);
   
-  const state = computeState();
-  broadcast({ type: 'STATE_UPDATE', data: state });
-  res.json({ success: true, goal: db.goal });
+  const state = computeState(req.user.id);
+  broadcast({ type: 'STATE_UPDATE', data: state }, req.user.username);
+  res.json({ success: true, goal: db.users[userIndex].goal });
 });
 
-// Helper function to query NBC Bakong Open API
-function checkTransactionOnBakong(md5Hash) {
+// Reset Goal Progress
+app.post('/api/goal/reset', authenticateUser, (req, res) => {
+  const db = readDB();
+  const userIndex = db.users.findIndex(u => u.id === req.user.id);
+  if (userIndex === -1) return res.status(404).json({ error: 'User not found' });
+
+  db.users[userIndex].goal.current = 0;
+  writeDB(db);
+  
+  const state = computeState(req.user.id);
+  broadcast({ type: 'STATE_UPDATE', data: state }, req.user.username);
+  res.json({ success: true, goal: db.users[userIndex].goal });
+});
+
+// Helper function to query NBC Bakong Open API with specific token
+function checkTransactionOnBakongWithToken(md5Hash, token) {
   return new Promise((resolve, reject) => {
-    const db = readDB();
-    const rawToken = db.settings?.bakongToken || process.env.KHQR_TOKEN;
-    const token = (rawToken || '').replace(/\s+/g, '');
     const payload = JSON.stringify({ md5: md5Hash });
     const url = new URL("https://api-bakong.nbc.gov.kh/v1/check_transaction_by_md5");
     
@@ -287,17 +464,41 @@ function checkTransactionOnBakong(md5Hash) {
   });
 }
 
+// --- PUBLIC STREAMER INFO API ---
+app.get('/api/donate/streamer/:username', (req, res) => {
+  const { username } = req.params;
+  const db = readDB();
+  const user = db.users.find(u => u.username === username.toLowerCase());
+  if (!user) {
+    return res.status(404).json({ error: 'Streamer not found' });
+  }
+
+  res.json({
+    username: user.username,
+    settings: {
+      gifUrl: user.settings?.gifUrl,
+      soundUrl: user.settings?.soundUrl,
+      soundVolume: user.settings?.soundVolume,
+      donationTextTemplate: user.settings?.donationTextTemplate
+    },
+    goal: user.goal
+  });
+});
+
 // Initiate Donation - Generates KHQR and caches pending details
 app.post('/api/donate/initiate', async (req, res) => {
-  const { name, amount, message, currency } = req.body;
+  const { name, amount, message, currency, username } = req.body;
   const reqCurrency = (currency || 'USD').toUpperCase();
   const numericAmount = parseFloat(amount);
+
+  if (!username) {
+    return res.status(400).json({ error: 'Target streamer username is required' });
+  }
 
   if (!name || isNaN(numericAmount)) {
     return res.status(400).json({ error: 'Invalid name or amount' });
   }
 
-  // Enforce correct minimum limits (100 KHR / 0.01 USD)
   if (reqCurrency === 'KHR') {
     if (numericAmount < 100) {
       return res.status(400).json({ error: 'Minimum donation in KHR is 100 Riels' });
@@ -309,9 +510,14 @@ app.post('/api/donate/initiate', async (req, res) => {
   }
 
   const db = readDB();
-  const account = db.settings?.bakongAccountId || process.env.ACCOUNT;
+  const user = db.users.find(u => u.username === username.toLowerCase());
+  if (!user) {
+    return res.status(404).json({ error: 'Streamer account not found' });
+  }
+
+  const account = user.bakongAccountId || process.env.ACCOUNT;
   if (!account) {
-    return res.status(500).json({ error: 'Server misconfiguration: ACCOUNT settings or env var is missing' });
+    return res.status(500).json({ error: 'Streamer has not configured their Bakong Account ID yet' });
   }
 
   try {
@@ -339,11 +545,11 @@ app.post('/api/donate/initiate', async (req, res) => {
     const qrString = response.data.qr;
     const md5 = response.data.md5;
 
-    // Convert string to base64 QR code image DataURL
     const qrDataUrl = await QRCode.toDataURL(qrString);
 
-    // Cache pending donation details
     pendingDonations[md5] = {
+      userId: user.id,
+      username: user.username,
       name: name.trim(),
       amount: numericAmount,
       currency: reqCurrency,
@@ -374,16 +580,22 @@ app.get('/api/donate/check/:md5', async (req, res) => {
   }
 
   try {
-    const checkResponse = await checkTransactionOnBakong(md5);
+    const db = readDB();
+    const user = db.users.find(u => u.id === pending.userId);
+    if (!user) {
+      return res.status(404).json({ error: 'Streamer account not found' });
+    }
+
+    const rawToken = user.bakongToken || process.env.KHQR_TOKEN;
+    const token = (rawToken || '').replace(/\s+/g, '');
+    const checkResponse = await checkTransactionOnBakongWithToken(md5, token);
     
     if (checkResponse && checkResponse.responseCode === 0) {
-      // Transaction is paid successfully!
-      const db = readDB();
-      
       const usdAmount = pending.currency === 'KHR' ? parseFloat((pending.amount / 4000).toFixed(2)) : pending.amount;
 
       const newDonation = {
         id: uuidv4(),
+        userId: pending.userId,
         name: pending.name,
         amount: pending.amount,
         currency: pending.currency,
@@ -393,15 +605,14 @@ app.get('/api/donate/check/:md5', async (req, res) => {
 
       db.donations.push(newDonation);
       
-      // Automatically increment active goal progress
-      if (db.goal && db.goal.active) {
-        db.goal.current = parseFloat((db.goal.current + usdAmount).toFixed(2));
+      const userIndex = db.users.findIndex(u => u.id === pending.userId);
+      if (userIndex !== -1 && db.users[userIndex].goal && db.users[userIndex].goal.active) {
+        db.users[userIndex].goal.current = parseFloat((db.users[userIndex].goal.current + usdAmount).toFixed(2));
       }
 
       writeDB(db);
-      const state = computeState();
+      const state = computeState(pending.userId);
 
-      // Send real-time event to overlays
       broadcast({
         type: 'ALERT',
         event: 'donation',
@@ -411,14 +622,12 @@ app.get('/api/donate/check/:md5', async (req, res) => {
           currency: newDonation.currency,
           message: newDonation.message,
           timestamp: newDonation.timestamp,
-          settings: db.settings
+          settings: user.settings
         }
-      });
+      }, pending.username);
 
-      // Also broadcast general state update
-      broadcast({ type: 'STATE_UPDATE', data: state });
+      broadcast({ type: 'STATE_UPDATE', data: state }, pending.username);
 
-      // Remove from cache
       delete pendingDonations[md5];
 
       return res.json({
@@ -427,7 +636,6 @@ app.get('/api/donate/check/:md5', async (req, res) => {
         donation: newDonation
       });
     } else if (checkResponse && checkResponse.responseCode === 1 && checkResponse.errorCode === 1) {
-      // Still pending / not found
       return res.json({
         success: true,
         status: 'pending'
@@ -447,8 +655,8 @@ app.get('/api/donate/check/:md5', async (req, res) => {
   }
 });
 
-// Submit/Add Donation
-app.post('/api/donate', (req, res) => {
+// Submit/Add Donation (Override / Simulator)
+app.post('/api/donate', authenticateUser, (req, res) => {
   const { name, amount, message } = req.body;
   if (!name || isNaN(amount) || Number(amount) <= 0) {
     return res.status(400).json({ error: 'Invalid name or amount' });
@@ -459,6 +667,7 @@ app.post('/api/donate', (req, res) => {
   
   const newDonation = {
     id: uuidv4(),
+    userId: req.user.id,
     name: name.trim(),
     amount: numericAmount,
     message: (message || '').trim(),
@@ -467,15 +676,14 @@ app.post('/api/donate', (req, res) => {
 
   db.donations.push(newDonation);
   
-  // Automatically increment active goal progress
-  if (db.goal && db.goal.active) {
-    db.goal.current = parseFloat((db.goal.current + numericAmount).toFixed(2));
+  const userIndex = db.users.findIndex(u => u.id === req.user.id);
+  if (userIndex !== -1 && db.users[userIndex].goal && db.users[userIndex].goal.active) {
+    db.users[userIndex].goal.current = parseFloat((db.users[userIndex].goal.current + numericAmount).toFixed(2));
   }
 
   writeDB(db);
-  const state = computeState();
+  const state = computeState(req.user.id);
 
-  // Send real-time event to overlays
   broadcast({
     type: 'ALERT',
     event: 'donation',
@@ -484,18 +692,17 @@ app.post('/api/donate', (req, res) => {
       amount: newDonation.amount,
       message: newDonation.message,
       timestamp: newDonation.timestamp,
-      settings: db.settings
+      settings: req.user.settings
     }
-  });
+  }, req.user.username);
 
-  // Also broadcast general state update (goal, tickers, lists)
-  broadcast({ type: 'STATE_UPDATE', data: state });
+  broadcast({ type: 'STATE_UPDATE', data: state }, req.user.username);
 
   res.json({ success: true, donation: newDonation });
 });
 
 // Submit/Add Follower
-app.post('/api/follow', (req, res) => {
+app.post('/api/follow', authenticateUser, (req, res) => {
   const { name } = req.body;
   if (!name || name.trim() === '') {
     return res.status(400).json({ error: 'Name is required' });
@@ -504,6 +711,7 @@ app.post('/api/follow', (req, res) => {
   const db = readDB();
   const newFollower = {
     id: uuidv4(),
+    userId: req.user.id,
     name: name.trim(),
     timestamp: new Date().toISOString()
   };
@@ -511,29 +719,26 @@ app.post('/api/follow', (req, res) => {
   db.followers.push(newFollower);
   writeDB(db);
 
-  const state = computeState();
+  const state = computeState(req.user.id);
 
-  // Trigger WebSocket follow alert
   broadcast({
     type: 'ALERT',
     event: 'follow',
     data: {
       name: newFollower.name,
       timestamp: newFollower.timestamp,
-      settings: db.settings
+      settings: req.user.settings
     }
-  });
+  }, req.user.username);
 
-  // Broadcast state update
-  broadcast({ type: 'STATE_UPDATE', data: state });
+  broadcast({ type: 'STATE_UPDATE', data: state }, req.user.username);
 
   res.json({ success: true, follower: newFollower });
 });
 
-// Test/Simulate Alert (doesn't save to JSON file)
-app.post('/api/test-alert', (req, res) => {
+// Test/Simulate Alert
+app.post('/api/test-alert', authenticateUser, (req, res) => {
   const { event, name, amount, message } = req.body;
-  const db = readDB();
   
   const payload = {
     type: 'ALERT',
@@ -543,38 +748,24 @@ app.post('/api/test-alert', (req, res) => {
       amount: event === 'follow' ? undefined : (amount || 10.0),
       message: event === 'follow' ? undefined : (message || 'This is a test donation message!'),
       timestamp: new Date().toISOString(),
-      settings: db.settings
+      settings: req.user.settings
     }
   };
 
-  broadcast(payload);
+  broadcast(payload, req.user.username);
   res.json({ success: true, msg: 'Test alert sent' });
-});
-
-// Reset Goal Progress
-app.post('/api/goal/reset', (req, res) => {
-  const db = readDB();
-  if (db.goal) {
-    db.goal.current = 0;
-  }
-  writeDB(db);
-  const state = computeState();
-  broadcast({ type: 'STATE_UPDATE', data: state });
-  res.json({ success: true, goal: db.goal });
 });
 
 // Serve frontend client static files from React build directory
 const clientBuildPath = path.join(__dirname, '..', 'frontend', 'dist');
 if (fs.existsSync(clientBuildPath)) {
   app.use(express.static(clientBuildPath));
-  // SPA routing fallback
   app.get('*', (req, res) => {
     res.sendFile(path.join(clientBuildPath, 'index.html'));
   });
 } else {
-  // Mock API fallback home for dev
   app.get('/', (req, res) => {
-    res.send('Streaming Alert Server is running. Frontend build not found. Run Vite dev server.');
+    res.send('Streaming Alert Server is running. Frontend build not found.');
   });
 }
 

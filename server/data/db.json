@@ -1,128 +1,151 @@
 {
-  "settings": {
-    "alertDuration": 7000,
-    "soundVolume": 0.8,
-    "followTextTemplate": "{name} joined the neon crew!",
-    "donationTextTemplate": "{name} sent {amount}!",
-    "gifUrl": "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExOHlmd3gydzZ2ZWZtcnkyMnQ2ZnQ2b2x2eHA0YWxxMW4xOXV0ZnpxOCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9cw/Wwddh1z09oD2r4kQyU/giphy.gif",
-    "soundUrl": "https://assets.mixkit.co/active_storage/sfx/2869/2869-84.wav",
-    "bakongAccountId": "ven_tityaka1@bkrt",
-    "bakongToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkYXRhIjp7ImlkIjoiMjUzNjE1OGIwYTE5NDFlZiJ9LCJpYXQiOjE3Nzg2NjM5MTIsImV4cCI6MTc4NjQzOTkxMn0.awzrSwXWqAYLz8KWH3ZSqpZ9igkYWt2Waw1dOwE8Rg0"
-  },
-  "goal": {
-    "title": "Upgrade Stream Mic",
-    "target": 500,
-    "current": 322,
-    "active": true
-  },
+  "users": [
+    {
+      "id": "a4505978-bb71-433e-b738-b60e703f1294",
+      "username": "kheang",
+      "password": "ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f",
+      "bakongAccountId": "ven_tityaka1@bkrt",
+      "bakongToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkYXRhIjp7ImlkIjoiMjUzNjE1OGIwYTE5NDFlZiJ9LCJpYXQiOjE3Nzg2NjM5MTIsImV4cCI6MTc4NjQzOTkxMn0.awzrSwXWqAYLz8KWH3ZSqpZ9igkYWt2Waw1dOwE8Rg0",
+      "settings": {
+        "alertDuration": 7000,
+        "soundVolume": 0.8,
+        "followTextTemplate": "{name} joined the neon crew!",
+        "donationTextTemplate": "{name} sent {amount}!",
+        "gifUrl": "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExOHlmd3gydzZ2ZWZtcnkyMnQ2ZnQ2b2x2eHA0YWxxMW4xOXV0ZnpxOCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9cw/Wwddh1z09oD2r4kQyU/giphy.gif",
+        "soundUrl": "https://assets.mixkit.co/active_storage/sfx/2869/2869-84.wav"
+      },
+      "goal": {
+        "title": "Upgrade Stream Mic",
+        "target": 500,
+        "current": 322,
+        "active": true
+      }
+    }
+  ],
   "donations": [
     {
       "id": "1",
       "name": "Chantra",
       "amount": 10,
       "message": "Love your content! Keep streaming!",
-      "timestamp": "2026-06-08T10:00:00.000Z"
+      "timestamp": "2026-06-08T10:00:00.000Z",
+      "userId": "a4505978-bb71-433e-b738-b60e703f1294"
     },
     {
       "id": "2",
       "name": "Sophea",
       "amount": 25,
       "message": "Awesome gameplay, check out this tip!",
-      "timestamp": "2026-06-08T11:30:00.000Z"
+      "timestamp": "2026-06-08T11:30:00.000Z",
+      "userId": "a4505978-bb71-433e-b738-b60e703f1294"
     },
     {
       "id": "3",
       "name": "Rithy",
       "amount": 5,
       "message": "Keep it up!",
-      "timestamp": "2026-06-08T12:00:00.000Z"
+      "timestamp": "2026-06-08T12:00:00.000Z",
+      "userId": "a4505978-bb71-433e-b738-b60e703f1294"
     },
     {
       "id": "972a1a96-4fb3-4bf5-8fa9-33f0354dc699",
       "name": "Vireak",
       "amount": 25,
       "message": "Keep up the amazing streams!",
-      "timestamp": "2026-06-08T07:11:52.692Z"
+      "timestamp": "2026-06-08T07:11:52.692Z",
+      "userId": "a4505978-bb71-433e-b738-b60e703f1294"
     },
     {
       "id": "a4f58796-0872-484f-9ee7-adf0b6b34456",
       "name": "Sophea",
       "amount": 100,
       "message": "Thank you so much!",
-      "timestamp": "2026-06-08T07:13:48.285Z"
+      "timestamp": "2026-06-08T07:13:48.285Z",
+      "userId": "a4505978-bb71-433e-b738-b60e703f1294"
     },
     {
       "id": "98fc5c6e-44f5-4856-8a54-947eb988c06f",
       "name": "Sok Chamroeun",
       "amount": 10,
       "message": "Hello from a fan! keep it up!",
-      "timestamp": "2026-06-08T07:20:56.757Z"
+      "timestamp": "2026-06-08T07:20:56.757Z",
+      "userId": "a4505978-bb71-433e-b738-b60e703f1294"
     },
     {
       "id": "5f677c0f-57a2-4e87-bcff-936293272870",
       "name": "Sok Chamroeun",
       "amount": 10,
       "message": "Hello from a fan! keep it up!",
-      "timestamp": "2026-06-08T07:20:57.450Z"
+      "timestamp": "2026-06-08T07:20:57.450Z",
+      "userId": "a4505978-bb71-433e-b738-b60e703f1294"
     },
     {
       "id": "e2c2cae1-7e35-428d-bfb9-af0816b04629",
       "name": "Sok Chamroeun",
       "amount": 10,
       "message": "Hello from a fan! keep it up!",
-      "timestamp": "2026-06-08T07:20:57.908Z"
+      "timestamp": "2026-06-08T07:20:57.908Z",
+      "userId": "a4505978-bb71-433e-b738-b60e703f1294"
     },
     {
       "id": "483a51f8-2021-4c0b-bf66-968255782ca5",
       "name": "1",
       "amount": 10,
       "message": "Hello from a fan! keep it up!",
-      "timestamp": "2026-06-08T07:40:16.273Z"
+      "timestamp": "2026-06-08T07:40:16.273Z",
+      "userId": "a4505978-bb71-433e-b738-b60e703f1294"
     },
     {
       "id": "99e266d8-c134-4b7f-a9ad-58a2878851a9",
       "name": "Sok Chamroeun",
       "amount": 10,
       "message": "Hello from a fan! keep it up!",
-      "timestamp": "2026-06-08T07:40:19.821Z"
+      "timestamp": "2026-06-08T07:40:19.821Z",
+      "userId": "a4505978-bb71-433e-b738-b60e703f1294"
     },
     {
       "id": "9853b758-6c96-4170-a6bd-311c57f86a4c",
       "name": "Sok Chamroeun",
       "amount": 10,
       "message": "Hello from a fan! keep it up!",
-      "timestamp": "2026-06-08T07:40:20.494Z"
+      "timestamp": "2026-06-08T07:40:20.494Z",
+      "userId": "a4505978-bb71-433e-b738-b60e703f1294"
     },
     {
       "id": "b330b4fe-7df3-485b-832f-02a538c39f96",
       "name": "Kheang",
       "amount": 1,
       "message": "Hi b",
-      "timestamp": "2026-06-08T07:46:55.322Z"
+      "timestamp": "2026-06-08T07:46:55.322Z",
+      "userId": "a4505978-bb71-433e-b738-b60e703f1294"
     },
     {
       "id": "95685ba3-5d2a-4e29-9a60-06fb3d0e0b16",
       "name": "PheakTra",
       "amount": 1,
       "message": "Hi",
-      "timestamp": "2026-06-08T07:49:14.093Z"
+      "timestamp": "2026-06-08T07:49:14.093Z",
+      "userId": "a4505978-bb71-433e-b738-b60e703f1294"
     }
   ],
   "followers": [
     {
       "id": "f1",
       "name": "Leakhena",
-      "timestamp": "2026-06-08T12:05:00.000Z"
+      "timestamp": "2026-06-08T12:05:00.000Z",
+      "userId": "a4505978-bb71-433e-b738-b60e703f1294"
     },
     {
       "id": "f2",
       "name": "Seyha",
-      "timestamp": "2026-06-08T12:45:00.000Z"
+      "timestamp": "2026-06-08T12:45:00.000Z",
+      "userId": "a4505978-bb71-433e-b738-b60e703f1294"
     },
     {
       "id": "0701f37c-1464-43ad-8e26-14aa9913d828",
       "name": "Srey Leak",
-      "timestamp": "2026-06-08T07:40:22.307Z"
+      "timestamp": "2026-06-08T07:40:22.307Z",
+      "userId": "a4505978-bb71-433e-b738-b60e703f1294"
     }
   ]
 }

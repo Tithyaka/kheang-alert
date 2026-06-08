@@ -1,20 +1,21 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { BrowserRouter, Routes, Route, Link, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
   LayoutDashboard, 
   Tv, 
   Settings, 
   DollarSign, 
-  Users, 
-  TrendingUp, 
   Volume2, 
+  TrendingUp, 
   Link as LinkIcon, 
-  Plus, 
-  RefreshCw, 
-  CheckCircle,
-  Copy,
-  ExternalLink,
-  Coins
+  Coins, 
+  ExternalLink, 
+  Copy, 
+  CheckCircle, 
+  RefreshCw,
+  LogOut,
+  UserPlus,
+  LogIn
 } from 'lucide-react';
 
 // --- CONFIG & UTILS ---
@@ -32,11 +33,184 @@ const formatCurrency = (val, currency = 'USD') => {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val || 0);
 };
 
-// --- MAIN APP COMPONENT ---
+// --- AUTH PAGES ---
+function LoginPage() {
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    // If already logged in, redirect to dashboard
+    if (localStorage.getItem('username')) {
+      navigate('/');
+    }
+  }, [navigate]);
+
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setErrorMsg('');
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        localStorage.setItem('username', data.username);
+        navigate('/');
+      } else {
+        setErrorMsg(data.error || 'Invalid username or password');
+      }
+    } catch (err) {
+      console.error(err);
+      setErrorMsg('Failed to connect to authentication server');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div style={{ background: '#090a0f', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+      <div className="donation-form-container" style={{ maxWidth: '400px' }}>
+        <div style={{ textAlign: 'center', marginBottom: '30px' }}>
+          <h2 style={{ fontFamily: 'var(--font-display)', color: '#fff', fontSize: '28px', textTransform: 'uppercase', marginBottom: '8px' }}>
+            KHEANG<span>ALERT</span> Login
+          </h2>
+          <p style={{ color: 'var(--color-text-secondary)' }}>Sign in to manage your streaming overlays & widgets</p>
+        </div>
+        <form onSubmit={handleLogin}>
+          <div className="form-group">
+            <label>Username</label>
+            <input 
+              type="text" 
+              value={username} 
+              onChange={e => setUsername(e.target.value)} 
+              required 
+              placeholder="Enter your username"
+              disabled={loading}
+            />
+          </div>
+          <div className="form-group">
+            <label>Password</label>
+            <input 
+              type="password" 
+              value={password} 
+              onChange={e => setPassword(e.target.value)} 
+              required 
+              placeholder="••••••••"
+              disabled={loading}
+            />
+          </div>
+          {errorMsg && (
+            <div style={{ color: 'var(--color-secondary)', fontSize: '13px', margin: '10px 0', fontWeight: 'bold' }}>
+              {errorMsg}
+            </div>
+          )}
+          <button type="submit" className="btn-primary" style={{ width: '100%', padding: '12px', fontSize: '15px', marginTop: '10px' }} disabled={loading}>
+            <LogIn size={18} /> {loading ? 'Logging in...' : 'Login'}
+          </button>
+        </form>
+        <div style={{ textAlign: 'center', marginTop: '20px', fontSize: '13px', color: 'var(--color-text-secondary)' }}>
+          Don't have an account? <Link to="/register" style={{ color: 'var(--color-primary)', fontWeight: 'bold' }}>Sign Up</Link>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function RegisterPage() {
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
+  const navigate = useNavigate();
+
+  const handleRegister = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setErrorMsg('');
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        localStorage.setItem('username', data.username);
+        alert('Account created successfully! Default password is ' + password);
+        navigate('/');
+      } else {
+        setErrorMsg(data.error || 'Username may be taken or invalid');
+      }
+    } catch (err) {
+      console.error(err);
+      setErrorMsg('Failed to connect to authentication server');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div style={{ background: '#090a0f', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+      <div className="donation-form-container" style={{ maxWidth: '400px' }}>
+        <div style={{ textAlign: 'center', marginBottom: '30px' }}>
+          <h2 style={{ fontFamily: 'var(--font-display)', color: '#fff', fontSize: '28px', textTransform: 'uppercase', marginBottom: '8px' }}>
+            Join KHEANG<span>ALERT</span>
+          </h2>
+          <p style={{ color: 'var(--color-text-secondary)' }}>Create an account to configure your personal Bakong KHQR</p>
+        </div>
+        <form onSubmit={handleRegister}>
+          <div className="form-group">
+            <label>Username</label>
+            <input 
+              type="text" 
+              value={username} 
+              onChange={e => setUsername(e.target.value)} 
+              required 
+              placeholder="Choose a username (e.g. streamer1)"
+              disabled={loading}
+            />
+          </div>
+          <div className="form-group">
+            <label>Password</label>
+            <input 
+              type="password" 
+              value={password} 
+              onChange={e => setPassword(e.target.value)} 
+              required 
+              placeholder="Create password"
+              disabled={loading}
+            />
+          </div>
+          {errorMsg && (
+            <div style={{ color: 'var(--color-secondary)', fontSize: '13px', margin: '10px 0', fontWeight: 'bold' }}>
+              {errorMsg}
+            </div>
+          )}
+          <button type="submit" className="btn-accent" style={{ width: '100%', padding: '12px', fontSize: '15px', marginTop: '10px' }} disabled={loading}>
+            <UserPlus size={18} /> {loading ? 'Registering...' : 'Create Account'}
+          </button>
+        </form>
+        <div style={{ textAlign: 'center', marginTop: '20px', fontSize: '13px', color: 'var(--color-text-secondary)' }}>
+          Already have an account? <Link to="/login" style={{ color: 'var(--color-primary)', fontWeight: 'bold' }}>Log In</Link>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// --- MAIN APP ROUTING ---
 export default function App() {
   return (
     <BrowserRouter>
       <Routes>
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
         <Route path="/overlays/alertbox" element={<AlertBoxOverlay />} />
         <Route path="/overlays/goal" element={<GoalOverlay />} />
         <Route path="/overlays/ticker" element={<TickerOverlay />} />
@@ -47,10 +221,12 @@ export default function App() {
   );
 }
 
-// --- LAYOUT & NAVIGATION ---
+// --- DASHBOARD LAYOUT ---
 function DashboardLayout() {
   const location = useLocation();
+  const navigate = useNavigate();
   const [state, setState] = useState({
+    username: '',
     settings: {},
     goal: {},
     donations: [],
@@ -59,9 +235,22 @@ function DashboardLayout() {
   });
   const [loading, setLoading] = useState(true);
 
+  const loggedInUser = localStorage.getItem('username');
+
   const fetchState = async () => {
+    if (!loggedInUser) {
+      navigate('/login');
+      return;
+    }
     try {
-      const res = await fetch(`${API_BASE}/api/state`);
+      const res = await fetch(`${API_BASE}/api/state`, {
+        headers: { 'X-Username': loggedInUser }
+      });
+      if (res.status === 401) {
+        localStorage.removeItem('username');
+        navigate('/login');
+        return;
+      }
       const data = await res.json();
       setState(data);
       setLoading(false);
@@ -71,10 +260,15 @@ function DashboardLayout() {
   };
 
   useEffect(() => {
+    if (!loggedInUser) {
+      navigate('/login');
+      return;
+    }
+
     fetchState();
     
-    // Connect WebSocket to keep state in sync
-    const ws = new WebSocket(WS_URL);
+    // Connect WebSocket scoped to user session
+    const ws = new WebSocket(`${WS_URL}?username=${loggedInUser}`);
     ws.onmessage = (event) => {
       const message = JSON.parse(event.data);
       if (message.type === 'STATE_UPDATE' || message.type === 'INIT_STATE') {
@@ -88,7 +282,12 @@ function DashboardLayout() {
     };
 
     return () => ws.close();
-  }, []);
+  }, [loggedInUser, navigate]);
+
+  const handleLogout = () => {
+    localStorage.removeItem('username');
+    navigate('/login');
+  };
 
   if (loading) {
     return (
@@ -103,6 +302,9 @@ function DashboardLayout() {
       <aside className="sidebar">
         <div className="brand">
           KHEANG<span>ALERT</span>
+        </div>
+        <div style={{ padding: '4px 10px', background: 'rgba(0, 240, 255, 0.1)', border: '1px solid rgba(0, 240, 255, 0.2)', borderRadius: '6px', fontSize: '13px', color: '#fff', textAlign: 'center', marginTop: '-15px' }}>
+          Streamer: <strong style={{ color: 'var(--color-primary)' }}>{loggedInUser}</strong>
         </div>
         <nav>
           <ul className="nav-menu">
@@ -127,9 +329,14 @@ function DashboardLayout() {
               </Link>
             </li>
             <li>
-              <a href="/donate" target="_blank" rel="noopener noreferrer" className="nav-link">
+              <a href={`/donate?user=${loggedInUser}`} target="_blank" rel="noopener noreferrer" className="nav-link">
                 <DollarSign size={18} /> Donation Page
               </a>
+            </li>
+            <li style={{ marginTop: '20px' }}>
+              <button onClick={handleLogout} className="btn-secondary" style={{ width: '100%', justifyContent: 'flex-start', background: 'transparent', border: '1px solid rgba(230, 57, 70, 0.2)', color: '#e63946' }}>
+                <LogOut size={18} /> Logout
+              </button>
             </li>
           </ul>
         </nav>
@@ -150,8 +357,9 @@ function DashboardLayout() {
   );
 }
 
-// --- COMPONENT: DONATION LINK & QR GENERATOR ---
+// --- LINK & QR CODE GENERATOR ---
 function DonationLinkGenerator() {
+  const loggedInUser = localStorage.getItem('username');
   const [prefName, setPrefName] = useState('');
   const [prefAmount, setPrefAmount] = useState('10');
   const [prefMsg, setPrefMsg] = useState('');
@@ -162,6 +370,7 @@ function DonationLinkGenerator() {
   
   // Construct parameters
   const params = [];
+  params.push(`user=${loggedInUser}`);
   if (prefName.trim()) params.push(`name=${encodeURIComponent(prefName.trim())}`);
   if (prefAmount && !isNaN(prefAmount) && parseFloat(prefAmount) > 0) params.push(`amount=${prefAmount}`);
   if (prefMsg.trim()) params.push(`message=${encodeURIComponent(prefMsg.trim())}`);
@@ -181,7 +390,7 @@ function DonationLinkGenerator() {
     <div className="card">
       <h3 className="card-title" style={{ marginBottom: '12px' }}><Coins size={18} /> Donation Link Generator</h3>
       <p style={{ color: 'var(--color-text-secondary)', fontSize: '13px', marginBottom: '16px' }}>
-        Generate a pre-filled donation link or QR code to share with viewers. When they pay, it triggers stream alerts.
+        Generate a pre-filled donation link or QR code for viewers. When paid, it sends tips to your account.
       </p>
       
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1.2fr', gap: '10px', marginBottom: '12px' }}>
@@ -265,7 +474,7 @@ function DonationLinkGenerator() {
   );
 }
 
-// --- PAGE: DASHBOARD HOME ---
+// --- DASHBOARD HOME ---
 function DashboardHome({ state, refresh }) {
   const { stats, donations, followers } = state;
   const recentActivities = [
@@ -282,7 +491,7 @@ function DashboardHome({ state, refresh }) {
         <div className="card">
           <div className="stat-label">Total Donations</div>
           <div className="stat-value" style={{ color: 'var(--color-primary)' }}>{formatCurrency(stats.totalDonations)}</div>
-          <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>Total received</div>
+          <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>Total received (USD Value)</div>
         </div>
         <div className="card">
           <div className="stat-label">Top Donation</div>
@@ -350,15 +559,15 @@ function DashboardHome({ state, refresh }) {
           </div>
         </div>
 
-        {/* Right side Column containing Goal and Link Generator */}
+        {/* Right side Column */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
           {/* Goal Progress Card */}
           <div className="card">
             <h3 className="card-title">Donation Goal</h3>
             <p style={{ color: 'var(--color-text-secondary)', marginBottom: '20px' }}>
-              Track progress for your current goals shown live on stream.
+              Track progress for your current goal.
             </p>
-            {state.goal.active ? (
+            {state.goal?.active ? (
               <div style={{ background: '#171923', padding: '16px', borderRadius: '8px', border: '1px solid var(--color-border)', marginBottom: '12px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
                   <span style={{ fontWeight: 'bold' }}>{state.goal.title}</span>
@@ -384,7 +593,6 @@ function DashboardHome({ state, refresh }) {
             </button>
           </div>
 
-          {/* Prefilled Link / QR Generator Card */}
           <DonationLinkGenerator />
         </div>
       </div>
@@ -392,8 +600,9 @@ function DashboardHome({ state, refresh }) {
   );
 }
 
-// --- PAGE: SIMULATOR ---
+// --- SIMULATOR ---
 function DashboardSimulator() {
+  const loggedInUser = localStorage.getItem('username');
   const [name, setName] = useState('');
   const [amount, setAmount] = useState('10');
   const [message, setMessage] = useState('');
@@ -412,9 +621,12 @@ function DashboardSimulator() {
     };
 
     try {
-      const response = await fetch(endpoint, {
+      const response = await fetch(`${API_BASE}${endpoint}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'X-Username': loggedInUser || ''
+        },
         body: JSON.stringify(payload)
       });
       if (response.ok) {
@@ -436,7 +648,7 @@ function DashboardSimulator() {
     <div style={{ maxWidth: '800px' }}>
       <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '28px', marginBottom: '24px', textTransform: 'uppercase', color: '#fff' }}>Alert Simulator</h2>
       <p style={{ color: 'var(--color-text-secondary)', marginBottom: '24px' }}>
-        Test your OBS overlay animations and stream settings. You can trigger live mock alerts, or save real test donations directly into the database.
+        Test overlays. You can trigger live mock alerts, or save real test events directly into the database.
       </p>
 
       <div className="card">
@@ -482,8 +694,9 @@ function DashboardSimulator() {
   );
 }
 
-// --- PAGE: CUSTOMIZER ---
+// --- CUSTOMIZER ---
 function DashboardCustomizer({ state, refresh }) {
+  const loggedInUser = localStorage.getItem('username');
   const [alertDuration, setAlertDuration] = useState(7000);
   const [soundVolume, setSoundVolume] = useState(0.8);
   const [followTextTemplate, setFollowTextTemplate] = useState('');
@@ -511,9 +724,11 @@ function DashboardCustomizer({ state, refresh }) {
       setDonationTextTemplate(state.settings.donationTextTemplate || '');
       setGifUrl(state.settings.gifUrl || '');
       setSoundUrl(state.settings.soundUrl || '');
-      setBakongAccountId(state.settings.bakongAccountId || '');
-      setBakongToken(state.settings.bakongToken || '');
     }
+    // settings root mapping for user credentials
+    setBakongAccountId(state.settings?.bakongAccountId || '');
+    setBakongToken(state.settings?.bakongToken || '');
+    
     if (state.goal) {
       setGoalTitle(state.goal.title || '');
       setGoalTarget(state.goal.target || 500);
@@ -528,7 +743,10 @@ function DashboardCustomizer({ state, refresh }) {
     try {
       await fetch(`${API_BASE}/api/settings`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'X-Username': loggedInUser || ''
+        },
         body: JSON.stringify({
           alertDuration: Number(alertDuration),
           soundVolume: parseFloat(soundVolume),
@@ -554,7 +772,10 @@ function DashboardCustomizer({ state, refresh }) {
     try {
       await fetch(`${API_BASE}/api/goal`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'X-Username': loggedInUser || ''
+        },
         body: JSON.stringify({
           title: goalTitle,
           target: Number(goalTarget),
@@ -578,7 +799,10 @@ function DashboardCustomizer({ state, refresh }) {
     try {
       await fetch(`${API_BASE}/api/settings`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'X-Username': loggedInUser || ''
+        },
         body: JSON.stringify({
           bakongAccountId: bakongAccountId.replace(/\s+/g, ''),
           bakongToken: bakongToken.replace(/\s+/g, '')
@@ -604,7 +828,10 @@ function DashboardCustomizer({ state, refresh }) {
     try {
       const response = await fetch(`${API_BASE}/api/settings/test-bakong`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'X-Username': loggedInUser || ''
+        },
         body: JSON.stringify({
           bakongAccountId: bakongAccountId.replace(/\s+/g, ''),
           bakongToken: bakongToken.replace(/\s+/g, '')
@@ -626,7 +853,10 @@ function DashboardCustomizer({ state, refresh }) {
 
   const resetGoal = async () => {
     if (window.confirm('Reset current progress towards this goal?')) {
-      await fetch(`${API_BASE}/api/goal/reset`, { method: 'POST' });
+      await fetch(`${API_BASE}/api/goal/reset`, { 
+        method: 'POST',
+        headers: { 'X-Username': loggedInUser || '' }
+      });
       refresh();
     }
   };
@@ -704,11 +934,11 @@ function DashboardCustomizer({ state, refresh }) {
         </form>
       </div>
 
-      {/* Bakong KHQR Configuration & Testing */}
+      {/* Bakong KHQR Settings */}
       <form onSubmit={saveBakongSettings} className="card">
         <h3 className="card-title"><Coins size={20} /> Bakong KHQR Settings & Live Testing</h3>
         <p style={{ color: 'var(--color-text-secondary)', fontSize: '14px', marginBottom: '20px' }}>
-          Configure your personal/merchant Bakong credentials. These values are used to generate payment QR codes and securely check payment status with NBC's APIs.
+          Configure your personal Bakong credentials. These values are used to generate your payment QR codes.
         </p>
         
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.5fr', gap: '20px', marginBottom: '20px' }}>
@@ -721,9 +951,6 @@ function DashboardCustomizer({ state, refresh }) {
               placeholder="e.g. name@bank_code"
               required
             />
-            <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginTop: '4px' }}>
-              Your Bakong wallet ID, for retail it ends in @bkrt
-            </div>
           </div>
           <div className="form-group">
             <label>Bakong Open API Access Token (JWT Bearer)</label>
@@ -735,9 +962,6 @@ function DashboardCustomizer({ state, refresh }) {
               style={{ fontSize: '12px', fontFamily: 'monospace' }}
               required
             />
-            <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginTop: '4px' }}>
-              Your JWT authorization token obtained from the NBC Bakong Developer Suite
-            </div>
           </div>
         </div>
 
@@ -749,8 +973,7 @@ function DashboardCustomizer({ state, refresh }) {
             padding: '14px', 
             borderRadius: '8px', 
             marginBottom: '20px', 
-            fontSize: '14px',
-            textAlign: 'left'
+            fontSize: '14px'
           }}>
             <strong>Connection Status:</strong> {testResult.message}
           </div>
@@ -774,15 +997,16 @@ function DashboardCustomizer({ state, refresh }) {
   );
 }
 
-// --- PAGE: WIDGET LINKS ---
+// --- OBS WIDGET LINKS ---
 function DashboardWidgets() {
   const [copied, setCopied] = useState('');
-
+  const username = localStorage.getItem('username') || '';
   const host = window.location.origin;
+
   const widgets = [
-    { name: 'Alert Box', path: '/overlays/alertbox', size: '1920 x 1080', desc: 'Shows animated notifications on new donations and follows' },
-    { name: 'Donation Goal Bar', path: '/overlays/goal', size: '400 x 80', desc: 'A progress bar indicating current donation goal' },
-    { name: 'Stream Ticker', path: '/overlays/ticker', size: '600 x 60', desc: 'Displays latest follower, latest donation and top donor info' }
+    { name: 'Alert Box', path: `/overlays/alertbox?username=${username}`, size: '1920 x 1080', desc: 'Shows animated notifications on new donations and follows' },
+    { name: 'Donation Goal Bar', path: `/overlays/goal?username=${username}`, size: '400 x 80', desc: 'A progress bar indicating current donation goal' },
+    { name: 'Stream Ticker', path: `/overlays/ticker?username=${username}`, size: '600 x 60', desc: 'Displays latest follower, latest donation and top donor info' }
   ];
 
   const handleCopy = (path) => {
@@ -795,7 +1019,7 @@ function DashboardWidgets() {
     <div>
       <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '28px', marginBottom: '24px', textTransform: 'uppercase', color: '#fff' }}>OBS Browser Sources</h2>
       <p style={{ color: 'var(--color-text-secondary)', marginBottom: '24px' }}>
-        Add these URLs as Browser Sources inside OBS. Use the recommended size values listed next to each widget.
+        Add these URLs as Browser Sources inside OBS. Use the recommended size values.
       </p>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -833,7 +1057,10 @@ function AlertBoxOverlay() {
   const isPlayingRef = useRef(false);
 
   useEffect(() => {
-    const ws = new WebSocket(WS_URL);
+    const params = new URLSearchParams(window.location.search);
+    const username = params.get('username') || '';
+
+    const ws = new WebSocket(`${WS_URL}?username=${username}`);
 
     ws.onmessage = (event) => {
       const message = JSON.parse(event.data);
@@ -856,17 +1083,14 @@ function AlertBoxOverlay() {
       const nextAlert = queueRef.current.shift();
       setActiveAlert(nextAlert);
 
-      // Play audio
       if (nextAlert.settings?.soundUrl) {
         const audio = new Audio(nextAlert.settings.soundUrl);
         audio.volume = nextAlert.settings.soundVolume ?? 0.8;
         audio.play().catch(e => console.error("Error playing audio:", e));
       }
 
-      // Keep it up for the specified duration, then play next
       setTimeout(() => {
         setActiveAlert(null);
-        // Add delay before next alert starts
         setTimeout(playNext, 500);
       }, nextAlert.settings?.alertDuration || 7000);
     };
@@ -906,7 +1130,10 @@ function GoalOverlay() {
   const [goal, setGoal] = useState({ title: '', target: 100, current: 0, active: false });
 
   useEffect(() => {
-    const ws = new WebSocket(WS_URL);
+    const params = new URLSearchParams(window.location.search);
+    const username = params.get('username') || '';
+
+    const ws = new WebSocket(`${WS_URL}?username=${username}`);
     ws.onmessage = (event) => {
       const message = JSON.parse(event.data);
       if (message.type === 'STATE_UPDATE' || message.type === 'INIT_STATE') {
@@ -943,7 +1170,10 @@ function TickerOverlay() {
   const [stats, setStats] = useState({ topDonation: null, latestDonation: null, latestFollower: null });
 
   useEffect(() => {
-    const ws = new WebSocket(WS_URL);
+    const params = new URLSearchParams(window.location.search);
+    const username = params.get('username') || '';
+
+    const ws = new WebSocket(`${WS_URL}?username=${username}`);
     ws.onmessage = (event) => {
       const message = JSON.parse(event.data);
       if (message.type === 'STATE_UPDATE' || message.type === 'INIT_STATE') {
@@ -981,8 +1211,14 @@ function TickerOverlay() {
   );
 }
 
-// --- PAGE: PUBLIC DONATION GATEWAY (MOCK) ---
+// --- PAGE: PUBLIC DONATION GATEWAY ---
 function PublicDonationPage() {
+  const [streamerName, setStreamerName] = useState('');
+  const [streamerInput, setStreamerInput] = useState('');
+  const [streamerInfo, setStreamerInfo] = useState(null);
+  const [streamerNotFound, setStreamerNotFound] = useState(false);
+  const [loadingStreamer, setLoadingStreamer] = useState(false);
+
   const [name, setName] = useState('');
   const [amount, setAmount] = useState('');
   const [message, setMessage] = useState('');
@@ -995,14 +1231,18 @@ function PublicDonationPage() {
   const [timeLeft, setTimeLeft] = useState(300); // 5 minutes validity
   const [errorText, setErrorText] = useState('');
 
-  // Prefill fields from URL query parameters (e.g. ?name=VIP&amount=5&message=Hi)
+  // 1. Check query parameters on load
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+    const pUser = params.get('user') || '';
     const pName = params.get('name') || '';
     const pAmount = params.get('amount') || '';
     const pMessage = params.get('message') || '';
     const pCurrency = params.get('currency') || 'USD';
     
+    if (pUser) {
+      setStreamerName(pUser.toLowerCase());
+    }
     if (pName) setName(pName);
     if (pAmount) setAmount(pAmount);
     if (pMessage) setMessage(pMessage);
@@ -1014,6 +1254,31 @@ function PublicDonationPage() {
     }
   }, []);
 
+  // 2. Fetch public info of the streamer when streamerName changes
+  useEffect(() => {
+    if (!streamerName) return;
+
+    const fetchStreamer = async () => {
+      setLoadingStreamer(true);
+      setStreamerNotFound(false);
+      try {
+        const res = await fetch(`/api/donate/streamer/${streamerName}`);
+        if (res.ok) {
+          const data = await res.json();
+          setStreamerInfo(data);
+        } else {
+          setStreamerNotFound(true);
+        }
+      } catch (err) {
+        console.error(err);
+        setStreamerNotFound(true);
+      } finally {
+        setLoadingStreamer(false);
+      }
+    };
+    fetchStreamer();
+  }, [streamerName]);
+
   // Polling loop for payment confirmation and countdown timer
   useEffect(() => {
     if (!qrCodeOpen || !transactionMd5) return;
@@ -1021,7 +1286,6 @@ function PublicDonationPage() {
     let pollInterval;
     let timerInterval;
 
-    // Start polling status
     pollInterval = setInterval(async () => {
       try {
         const response = await fetch(`/api/donate/check/${transactionMd5}`);
@@ -1047,7 +1311,6 @@ function PublicDonationPage() {
       }
     }, 3000);
 
-    // Start expiration countdown timer
     timerInterval = setInterval(() => {
       setTimeLeft((prev) => {
         if (prev <= 1) {
@@ -1067,6 +1330,13 @@ function PublicDonationPage() {
       clearInterval(timerInterval);
     };
   }, [qrCodeOpen, transactionMd5]);
+
+  const handleSearchStreamer = (e) => {
+    e.preventDefault();
+    if (streamerInput.trim()) {
+      window.location.search = `?user=${encodeURIComponent(streamerInput.trim().toLowerCase())}`;
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -1098,7 +1368,8 @@ function PublicDonationPage() {
           name: name.trim(),
           amount: numericAmount,
           currency,
-          message: message.trim()
+          message: message.trim(),
+          username: streamerName
         })
       });
       const data = await response.json();
@@ -1124,14 +1395,84 @@ function PublicDonationPage() {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
+  // View: If no user selected
+  if (!streamerName) {
+    return (
+      <div style={{ background: '#090a0f', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+        <div className="donation-form-container" style={{ maxWidth: '450px' }}>
+          <div style={{ textAlign: 'center', marginBottom: '30px' }}>
+            <h2 style={{ fontFamily: 'var(--font-display)', color: '#fff', fontSize: '28px', textTransform: 'uppercase', marginBottom: '8px' }}>Support A Streamer</h2>
+            <p style={{ color: 'var(--color-text-secondary)' }}>Enter the username of the streamer you wish to support</p>
+          </div>
+          <form onSubmit={handleSearchStreamer}>
+            <div className="form-group">
+              <label>Streamer Username</label>
+              <input 
+                type="text" 
+                value={streamerInput} 
+                onChange={e => setStreamerInput(e.target.value)} 
+                required 
+                placeholder="e.g. kheang"
+              />
+            </div>
+            <button type="submit" className="btn-primary" style={{ width: '100%', padding: '12px', fontSize: '15px', marginTop: '10px' }}>
+              Find Streamer Page
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  // View: Streamer Loading
+  if (loadingStreamer) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', background: '#090a0f', color: '#00f0ff', fontFamily: 'Rajdhani', fontSize: '24px' }}>
+        RETRIEVING STREAMER INFO...
+      </div>
+    );
+  }
+
+  // View: Streamer Not Found
+  if (streamerNotFound) {
+    return (
+      <div style={{ background: '#090a0f', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+        <div className="donation-form-container" style={{ textAlign: 'center', maxWidth: '450px' }}>
+          <h2 style={{ fontFamily: 'var(--font-display)', color: 'var(--color-secondary)', fontSize: '28px', marginBottom: '15px' }}>STREAMER NOT FOUND</h2>
+          <p style={{ color: 'var(--color-text-secondary)', marginBottom: '30px' }}>The user account <strong>"{streamerName}"</strong> does not exist or has not been configured yet.</p>
+          <button className="btn-secondary" style={{ width: '100%' }} onClick={() => setStreamerName('')}>Try Another Username</button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={{ background: '#090a0f', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
       {!success ? (
         <div className="donation-form-container">
           <div style={{ textAlign: 'center', marginBottom: '30px' }}>
-            <h2 style={{ fontFamily: 'var(--font-display)', color: '#fff', fontSize: '28px', textTransform: 'uppercase', marginBottom: '8px' }}>Support My Stream</h2>
-            <p style={{ color: 'var(--color-text-secondary)' }}>Send a tip and shoutout to support the live broadcast!</p>
+            <h2 style={{ fontFamily: 'var(--font-display)', color: '#fff', fontSize: '28px', textTransform: 'uppercase', marginBottom: '8px' }}>
+              Support <span style={{ color: 'var(--color-primary)' }}>{streamerName}</span>
+            </h2>
+            <p style={{ color: 'var(--color-text-secondary)' }}>Send a tip and shoutout directly to their stream overlay!</p>
           </div>
+          
+          {streamerInfo?.goal?.active && (
+            <div style={{ background: '#171923', padding: '14px', borderRadius: '8px', border: '1px solid var(--color-border)', marginBottom: '20px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', fontSize: '13px' }}>
+                <span style={{ fontWeight: 'bold' }}>Goal: {streamerInfo.goal.title}</span>
+                <span style={{ color: 'var(--color-primary)' }}>{Math.round((streamerInfo.goal.current / streamerInfo.goal.target) * 100)}%</span>
+              </div>
+              <div style={{ height: '8px', background: 'rgba(255,255,255,0.05)', borderRadius: '4px', overflow: 'hidden' }}>
+                <div style={{
+                  width: `${Math.min(100, (streamerInfo.goal.current / streamerInfo.goal.target) * 100)}%`,
+                  height: '100%',
+                  background: 'linear-gradient(90deg, var(--color-primary), var(--color-secondary))'
+                }}></div>
+              </div>
+            </div>
+          )}
+
           <form onSubmit={handleSubmit}>
             <div className="form-group">
               <label>Your Name / Alias</label>
@@ -1201,7 +1542,7 @@ function PublicDonationPage() {
         <div className="donation-form-container" style={{ textAlign: 'center' }}>
           <div className="success-checkmark">✓</div>
           <h2 style={{ fontFamily: 'var(--font-display)', color: 'var(--color-success)', fontSize: '28px', margin: '20px 0 10px' }}>Thank You!</h2>
-          <p style={{ color: 'var(--color-text-secondary)', marginBottom: '30px' }}>Your donation has been sent and will appear live on stream momentarily!</p>
+          <p style={{ color: 'var(--color-text-secondary)', marginBottom: '30px' }}>Your donation has been sent to {streamerName} and will appear live on stream momentarily!</p>
           <button className="btn-secondary" onClick={() => setSuccess(false)}>Send Another Tip</button>
         </div>
       )}
@@ -1214,7 +1555,7 @@ function PublicDonationPage() {
               Scan to Pay with Bakong / KHQR
             </h3>
             <p style={{ color: 'var(--color-text-secondary)', fontSize: '14px', textAlign: 'center', marginBottom: '20px' }}>
-              Scan the QR code below using any Cambodian banking app that supports KHQR to complete your donation.
+              Scan the QR code using any banking app that supports KHQR to complete your donation to {streamerName}.
             </p>
             
             <div className="qr-code-img" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#fff', padding: '15px', borderRadius: '12px', boxShadow: '0 8px 30px rgba(0,0,0,0.5)', border: '2px solid var(--color-primary)' }}>
