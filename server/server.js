@@ -123,6 +123,20 @@ function computeState(userId) {
     }, userDonations[0]);
   }
 
+  // Calculate top 5 donations (normalize to USD for comparison, sorted descending)
+  const top5Donations = [...userDonations]
+    .map(d => {
+      const amt = parseFloat(d.amount);
+      const usdVal = d.currency === 'KHR' ? amt / 4000 : amt;
+      return { ...d, usdVal };
+    })
+    .sort((a, b) => b.usdVal - a.usdVal)
+    .slice(0, 5)
+    .map(d => {
+      const { usdVal, ...cleanD } = d;
+      return cleanD;
+    });
+
   // Calculate latest donation
   let latestDonation = null;
   if (userDonations.length > 0) {
@@ -151,6 +165,7 @@ function computeState(userId) {
     stats: {
       totalDonations,
       topDonation,
+      top5Donations,
       latestDonation,
       latestFollower
     }

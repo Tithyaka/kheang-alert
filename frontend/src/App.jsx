@@ -231,7 +231,7 @@ function DashboardLayout() {
     goal: {},
     donations: [],
     followers: [],
-    stats: { totalDonations: 0, topDonation: null, latestDonation: null, latestFollower: null }
+    stats: { totalDonations: 0, topDonation: null, top5Donations: [], latestDonation: null, latestFollower: null }
   });
   const [loading, setLoading] = useState(true);
 
@@ -591,6 +591,98 @@ function DashboardHome({ state, refresh }) {
             <button className="btn-secondary" style={{ width: '100%' }} onClick={refresh}>
               <RefreshCw size={16} /> Refresh Stats
             </button>
+          </div>
+
+          {/* Top 5 Donations Leaderboard Card */}
+          <div className="card">
+            <h3 className="card-title">
+              <TrendingUp size={18} style={{ color: 'var(--color-primary)' }} /> Top 5 Donations
+            </h3>
+            <p style={{ color: 'var(--color-text-secondary)', fontSize: '13px', marginBottom: '16px' }}>
+              All-time top contributors sorted by value.
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {(!stats.top5Donations || stats.top5Donations.length === 0) ? (
+                <div style={{ color: 'var(--color-text-muted)', fontSize: '13px', textAlign: 'center', padding: '20px 0', border: '1px dashed var(--color-border)', borderRadius: '8px' }}>
+                  No donations recorded yet.
+                </div>
+              ) : (
+                stats.top5Donations.map((d, index) => {
+                  const rankEmojis = ['🥇', '🥈', '🥉', '4th', '5th'];
+                  const rankColors = [
+                    '#ffd700', // Gold
+                    '#c0c0c0', // Silver
+                    '#cd7f32', // Bronze
+                    'var(--color-text-secondary)',
+                    'var(--color-text-muted)'
+                  ];
+                  const isTop3 = index < 3;
+                  
+                  return (
+                    <div
+                      key={d.id || index}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '10px 12px',
+                        background: 'rgba(23, 25, 35, 0.6)',
+                        border: `1px solid ${isTop3 ? 'rgba(0, 240, 255, 0.15)' : 'var(--color-border)'}`,
+                        borderRadius: '8px',
+                        transition: 'all 0.2s ease',
+                        position: 'relative'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.transform = 'translateX(4px)';
+                        e.currentTarget.style.background = 'rgba(24, 27, 46, 0.8)';
+                        e.currentTarget.style.borderColor = 'var(--color-primary)';
+                        e.currentTarget.style.boxShadow = '0 0 10px rgba(0, 240, 255, 0.15)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.transform = 'none';
+                        e.currentTarget.style.background = 'rgba(23, 25, 35, 0.6)';
+                        e.currentTarget.style.borderColor = isTop3 ? 'rgba(0, 240, 255, 0.15)' : 'var(--color-border)';
+                        e.currentTarget.style.boxShadow = 'none';
+                      }}
+                      title={d.message ? `"${d.message}"` : 'No message'}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+                        <span style={{ 
+                          fontSize: isTop3 ? '18px' : '12px', 
+                          fontWeight: '800', 
+                          color: rankColors[index],
+                          width: '24px',
+                          display: 'inline-block',
+                          textAlign: 'center'
+                        }}>
+                          {rankEmojis[index]}
+                        </span>
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontWeight: 'bold', color: '#fff', fontSize: '14px', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                            {d.name}
+                          </div>
+                          {d.message && (
+                            <div style={{ color: 'var(--color-text-secondary)', fontSize: '11px', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                              {d.message}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                        <span style={{ 
+                          fontFamily: 'var(--font-display)', 
+                          fontWeight: '700', 
+                          color: isTop3 ? 'var(--color-secondary)' : 'var(--color-primary)',
+                          fontSize: '15px'
+                        }}>
+                          {formatCurrency(d.amount, d.currency)}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
           </div>
 
           <DonationLinkGenerator />
