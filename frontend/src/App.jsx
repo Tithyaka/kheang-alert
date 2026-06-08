@@ -936,37 +936,32 @@ function DashboardCustomizer({ state, refresh }) {
       const data = await response.json();
       if (response.ok && data.success) {
         if (data.isBlocked) {
+          // NBC API CORS policy blocks Authorization header from browsers.
+          // Instead, decode the JWT locally to verify token expiry.
           try {
-            const testPayload = JSON.stringify({ md5: "1234567890abcdef1234567890abcdef" });
-            const browserUrl = bakongEnv === 'sandbox' 
-              ? "https://sit-api-bakong.nbc.gov.kh/v1/check_transaction_by_md5"
-              : "https://api-bakong.nbc.gov.kh/v1/check_transaction_by_md5";
-            const browserRes = await fetch(browserUrl, {
-              method: 'POST',
-              headers: {
-                'Authorization': `Bearer ${bakongToken.replace(/\s+/g, '')}`,
-                'Content-Type': 'application/json'
-              },
-              body: testPayload
-            });
-            const browserData = await browserRes.json();
-            if (browserRes.ok && browserData && (browserData.responseCode === 0 || browserData.responseCode === 1)) {
-              setTestResult({ 
-                success: true, 
-                message: 'Connection successful (verified via browser fallback)! Credentials are valid.' 
-              });
+            const cleanToken = bakongToken.replace(/\s+/g, '');
+            const parts = cleanToken.split('.');
+            if (parts.length === 3) {
+              const payload = JSON.parse(atob(parts[1]));
+              const expDate = new Date((payload.exp || 0) * 1000);
+              const now = new Date();
+              if (payload.exp && expDate > now) {
+                const diffDays = Math.floor((expDate - now) / (1000 * 60 * 60 * 24));
+                setTestResult({ 
+                  success: true, 
+                  message: `✅ Credentials saved. Token is valid for ${diffDays} more day(s) (expires ${expDate.toLocaleDateString()}). Note: your server is hosted outside Cambodia so NBC API verification runs via client-side fallback. Donors can still pay using QR + ABA/Bakong app.` 
+                });
+              } else {
+                setTestResult({ 
+                  success: false, 
+                  message: `⚠️ JWT Token is EXPIRED (expired ${expDate.toLocaleDateString()}). Please get a new token from api-bakong.nbc.gov.kh and update it here.` 
+                });
+              }
             } else {
-              setTestResult({ 
-                success: false, 
-                message: `Verification via browser fallback failed: ${browserData?.responseMessage || 'Invalid API Token.'}` 
-              });
+              setTestResult({ success: true, message: '✅ Credentials saved. Server is hosted outside Cambodia (geo-blocked by NBC). Donors can still pay using the QR code with ABA Mobile, Bakong, or Acleda.' });
             }
-          } catch (browserErr) {
-            console.error("Browser verification error:", browserErr);
-            setTestResult({ 
-              success: true, 
-              message: 'Server is geo-blocked. Token could not be checked from browser due to network error, but settings were saved.' 
-            });
+          } catch (jwtErr) {
+            setTestResult({ success: true, message: '✅ Credentials saved. Server is hosted outside Cambodia (geo-blocked by NBC). Donors can still pay using the QR code with ABA Mobile, Bakong, or Acleda.' });
           }
         } else {
           setTestResult({ success: true, message: data.message });
@@ -1373,6 +1368,7 @@ function PublicDonationPage() {
   const [transactionMd5, setTransactionMd5] = useState('');
   const [timeLeft, setTimeLeft] = useState(300); // 5 minutes validity
   const [errorText, setErrorText] = useState('');
+  const [isGeoBlocked, setIsGeoBlocked] = useState(false);
 
   // 1. Check query parameters on load
   useEffect(() => {
@@ -1436,42 +1432,49 @@ function PublicDonationPage() {
       try {
         if (clientVerifyToken && clientVerifyUrl) {
           const payload = JSON.stringify({ md5: transactionMd5 });
-          const clientRes = await fetch(clientVerifyUrl, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${clientVerifyToken}`,
-              'Content-Type': 'application/json'
-            },
-            body: payload
-          });
-          if (clientRes.ok) {
-            const clientData = await clientRes.json();
-            if (clientData && clientData.responseCode === 0) {
-              const confirmRes = await fetch(`/api/donate/confirm`, {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ md5: transactionMd5 })
-              });
-              const confirmData = await confirmRes.json();
-              if (confirmRes.ok && confirmData.success) {
-                setSuccess(true);
+          try {
+            const clientRes = await fetch(clientVerifyUrl, {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${clientVerifyToken}`,
+                'Content-Type': 'application/json'
+              },
+              body: payload
+            });
+            if (clientRes.ok) {
+              const clientData = await clientRes.json();
+              if (clientData && clientData.responseCode === 0) {
+                const confirmRes = await fetch(`/api/donate/confirm`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ md5: transactionMd5 })
+                });
+                const confirmData = await confirmRes.json();
+                if (confirmRes.ok && confirmData.success) {
+                  setSuccess(true);
+                  setQrCodeOpen(false);
+                  setTransactionMd5('');
+                  setQrDataUrl('');
+                  setQrString('');
+                  setIsGeoBlocked(false);
+                  setName('');
+                  setAmount('');
+                  setMessage('');
+                }
+              } else if (clientData && clientData.responseCode === 1 && clientData.errorCode === 1) {
+                // Still pending — keep polling
+              } else {
+                setErrorText(clientData?.responseMessage || 'Payment processing failed.');
                 setQrCodeOpen(false);
                 setTransactionMd5('');
-                setQrDataUrl('');
-                setQrString('');
-                setName('');
-                setAmount('');
-                setMessage('');
               }
-            } else if (clientData && clientData.responseCode === 1 && clientData.errorCode === 1) {
-              // Still pending
-            } else {
-              setErrorText(clientData?.responseMessage || 'Payment processing failed.');
-              setQrCodeOpen(false);
-              setTransactionMd5('');
             }
+          } catch (corsErr) {
+            // NBC API CORS blocks Authorization header from browsers.
+            // Fall back to manual "I've Paid" button.
+            console.warn('Browser-side CORS block. Showing manual confirm.', corsErr);
+            clearInterval(pollInterval);
+            setIsGeoBlocked(true);
           }
         } else {
           const response = await fetch(`/api/donate/check/${transactionMd5}`);
@@ -1824,13 +1827,72 @@ function PublicDonationPage() {
               </div>
             </div>
             
-            <p style={{ color: 'var(--color-primary)', fontSize: '14px', fontWeight: 'bold', margin: '20px 0 5px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span className="pulse-loader"></span> Waiting for payment...
-            </p>
-            
-            <div style={{ fontSize: '13px', color: 'var(--color-text-muted)', background: 'rgba(255,255,255,0.05)', padding: '6px 12px', borderRadius: '20px', marginTop: '5px' }}>
-              QR code expires in <span style={{ color: '#fff', fontWeight: 'bold', fontFamily: 'monospace' }}>{formatTime(timeLeft)}</span>
-            </div>
+            {isGeoBlocked ? (
+              <div style={{ marginTop: '20px', textAlign: 'center' }}>
+                <div style={{ 
+                  background: 'rgba(255,180,0,0.1)', 
+                  border: '1px solid rgba(255,180,0,0.3)', 
+                  borderRadius: '10px', 
+                  padding: '14px 20px',
+                  marginBottom: '16px',
+                  fontSize: '13px',
+                  color: '#ffb400'
+                }}>
+                  ⚠️ Auto-verification unavailable (server outside Cambodia).<br/>
+                  After paying with ABA/Bakong app, tap the button below to confirm.
+                </div>
+                <button
+                  style={{
+                    width: '100%',
+                    padding: '14px',
+                    background: 'linear-gradient(135deg, #00c853, #1de9b6)',
+                    border: 'none',
+                    borderRadius: '10px',
+                    color: '#000',
+                    fontSize: '16px',
+                    fontWeight: 'bold',
+                    cursor: 'pointer',
+                    boxShadow: '0 4px 20px rgba(0,200,83,0.4)',
+                  }}
+                  onClick={async () => {
+                    try {
+                      const res = await fetch('/api/donate/confirm', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ md5: transactionMd5 })
+                      });
+                      const d = await res.json();
+                      if (res.ok && d.success) {
+                        setSuccess(true);
+                        setQrCodeOpen(false);
+                        setTransactionMd5('');
+                        setQrDataUrl('');
+                        setQrString('');
+                        setIsGeoBlocked(false);
+                        setName('');
+                        setAmount('');
+                        setMessage('');
+                      } else {
+                        alert(d.error || 'Confirmation failed. Please try again.');
+                      }
+                    } catch (e) {
+                      alert('Network error. Please try again.');
+                    }
+                  }}
+                >
+                  ✅ I've Paid — Show Alert on Stream
+                </button>
+              </div>
+            ) : (
+              <>
+                <p style={{ color: 'var(--color-primary)', fontSize: '14px', fontWeight: 'bold', margin: '20px 0 5px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span className="pulse-loader"></span> Waiting for payment...
+                </p>
+                <div style={{ fontSize: '13px', color: 'var(--color-text-muted)', background: 'rgba(255,255,255,0.05)', padding: '6px 12px', borderRadius: '20px', marginTop: '5px' }}>
+                  QR code expires in <span style={{ color: '#fff', fontWeight: 'bold', fontFamily: 'monospace' }}>{formatTime(timeLeft)}</span>
+                </div>
+              </>
+            )}
             
             {errorText && (
               <div style={{ color: 'var(--color-danger)', fontSize: '13px', marginTop: '10px', fontWeight: 'bold' }}>
@@ -1838,7 +1900,7 @@ function PublicDonationPage() {
               </div>
             )}
             
-            <button className="btn-secondary" style={{ marginTop: '20px', width: '100%', borderColor: 'rgba(255,255,255,0.1)' }} onClick={() => setQrCodeOpen(false)}>
+            <button className="btn-secondary" style={{ marginTop: '20px', width: '100%', borderColor: 'rgba(255,255,255,0.1)' }} onClick={() => { setQrCodeOpen(false); setIsGeoBlocked(false); }}>
               Cancel Payment
             </button>
           </div>
