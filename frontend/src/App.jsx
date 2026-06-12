@@ -13,13 +13,22 @@ import {
   Copy, 
   CheckCircle, 
   RefreshCw,
-  LogOut
+  LogOut,
+  CreditCard,
+  QrCode,
+  ShieldCheck,
+  User,
+  MessageSquare,
+  ChevronLeft,
+  ChevronRight,
+  Trophy,
+  Smartphone
 } from 'lucide-react';
 
 // --- CONFIG & UTILS ---
-const API_BASE = ''; // Proxied in dev, relative in prod
+const API_BASE = import.meta.env.DEV ? 'http://localhost:5000' : '';
 const WS_URL = import.meta.env.DEV 
-  ? 'ws://localhost:5000' 
+  ? 'ws://127.0.0.1:5000' 
   : `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}`;
 
 // Helper to format currency (USD / KHR support)
@@ -206,6 +215,11 @@ function DashboardLayout() {
               </Link>
             </li>
             <li>
+              <Link to="/tts" className={`nav-link ${location.pathname === '/tts' ? 'active' : ''}`}>
+                <Volume2 size={18} /> TTS Settings
+              </Link>
+            </li>
+            <li>
               <Link to="/widgets" className={`nav-link ${location.pathname === '/widgets' ? 'active' : ''}`}>
                 <LinkIcon size={18} /> OBS Widgets
               </Link>
@@ -232,6 +246,7 @@ function DashboardLayout() {
           <Route path="/" element={<DashboardHome state={state} refresh={fetchState} />} />
           <Route path="/simulator" element={<DashboardSimulator state={state} />} />
           <Route path="/customizer" element={<DashboardCustomizer state={state} refresh={fetchState} />} />
+          <Route path="/tts" element={<DashboardTTS state={state} refresh={fetchState} />} />
           <Route path="/widgets" element={<DashboardWidgets />} />
         </Routes>
       </main>
@@ -678,23 +693,6 @@ function DashboardCustomizer({ state, refresh }) {
   const [gifUrl, setGifUrl] = useState('');
   const [soundUrl, setSoundUrl] = useState('');
 
-  const [ttsEnabled, setTtsEnabled] = useState(false);
-  const [ttsVolume, setTtsVolume] = useState(1);
-  const [ttsLang, setTtsLang] = useState('km-KH');
-  const [ttsVoiceURI, setTtsVoiceURI] = useState('');
-  const [availableVoices, setAvailableVoices] = useState([]);
-
-  useEffect(() => {
-    const loadVoices = () => {
-      const voices = window.speechSynthesis.getVoices();
-      setAvailableVoices(voices);
-    };
-    loadVoices();
-    if (window.speechSynthesis.onvoiceschanged !== undefined) {
-      window.speechSynthesis.onvoiceschanged = loadVoices;
-    }
-  }, []);
-
   const [goalTitle, setGoalTitle] = useState('');
   const [goalTarget, setGoalTarget] = useState(500);
   const [goalCurrent, setGoalCurrent] = useState(0);
@@ -706,6 +704,29 @@ function DashboardCustomizer({ state, refresh }) {
   const [testingStatus, setTestingStatus] = useState('');
   const [testResult, setTestResult] = useState(null);
 
+  // New gateway and credential settings states
+  const [abaMerchantLinkUsd, setAbaMerchantLinkUsd] = useState('');
+  const [abaMerchantLinkKhr, setAbaMerchantLinkKhr] = useState('');
+  const [usdPaymentMethod, setUsdPaymentMethod] = useState('bakong'); // 'aba', 'bakong'
+  const [khrPaymentMethod, setKhrPaymentMethod] = useState('bakong'); // 'aba', 'bakong'
+
+  // Presets and limits states
+  const [presetUsd1, setPresetUsd1] = useState('1');
+  const [presetUsd2, setPresetUsd2] = useState('5');
+  const [presetUsd3, setPresetUsd3] = useState('10');
+  const [presetUsd4, setPresetUsd4] = useState('20');
+  const [presetUsd5, setPresetUsd5] = useState('50');
+  const [minUsd, setMinUsd] = useState('');
+  const [maxUsd, setMaxUsd] = useState('');
+
+  const [presetKhr1, setPresetKhr1] = useState('4000');
+  const [presetKhr2, setPresetKhr2] = useState('10000');
+  const [presetKhr3, setPresetKhr3] = useState('20000');
+  const [presetKhr4, setPresetKhr4] = useState('50000');
+  const [presetKhr5, setPresetKhr5] = useState('100000');
+  const [minKhr, setMinKhr] = useState('');
+  const [maxKhr, setMaxKhr] = useState('');
+
   const [updating, setUpdating] = useState(false);
 
   useEffect(() => {
@@ -716,15 +737,32 @@ function DashboardCustomizer({ state, refresh }) {
       setDonationTextTemplate(state.settings.donationTextTemplate || '');
       setGifUrl(state.settings.gifUrl || '');
       setSoundUrl(state.settings.soundUrl || '');
-      setTtsEnabled(state.settings.ttsEnabled || false);
-      setTtsVolume(state.settings.ttsVolume ?? 1);
-      setTtsLang(state.settings.ttsLang || 'km-KH');
-      setTtsVoiceURI(state.settings.ttsVoiceURI || '');
     }
-    // settings root mapping for user credentials
+    // settings credentials loading
     setBakongAccountId(state.settings?.bakongAccountId || '');
     setBakongToken(state.settings?.bakongToken || '');
     setBakongEnv(state.settings?.bakongEnv || 'production');
+    
+    setAbaMerchantLinkUsd(state.settings?.abaMerchantLinkUsd || '');
+    setAbaMerchantLinkKhr(state.settings?.abaMerchantLinkKhr || '');
+    setUsdPaymentMethod(state.settings?.usdPaymentMethod || 'bakong');
+    setKhrPaymentMethod(state.settings?.khrPaymentMethod || 'bakong');
+
+    setPresetUsd1(state.settings?.presetUsd1 || '1');
+    setPresetUsd2(state.settings?.presetUsd2 || '5');
+    setPresetUsd3(state.settings?.presetUsd3 || '10');
+    setPresetUsd4(state.settings?.presetUsd4 || '20');
+    setPresetUsd5(state.settings?.presetUsd5 || '50');
+    setMinUsd(state.settings?.minUsd || '');
+    setMaxUsd(state.settings?.maxUsd || '');
+
+    setPresetKhr1(state.settings?.presetKhr1 || '4000');
+    setPresetKhr2(state.settings?.presetKhr2 || '10000');
+    setPresetKhr3(state.settings?.presetKhr3 || '20000');
+    setPresetKhr4(state.settings?.presetKhr4 || '50000');
+    setPresetKhr5(state.settings?.presetKhr5 || '100000');
+    setMinKhr(state.settings?.minKhr || '');
+    setMaxKhr(state.settings?.maxKhr || '');
     
     if (state.goal) {
       setGoalTitle(state.goal.title || '');
@@ -750,11 +788,7 @@ function DashboardCustomizer({ state, refresh }) {
           followTextTemplate,
           donationTextTemplate,
           gifUrl,
-          soundUrl,
-          ttsEnabled,
-          ttsVolume: parseFloat(ttsVolume),
-          ttsLang,
-          ttsVoiceURI
+          soundUrl
         })
       });
       refresh();
@@ -807,14 +841,32 @@ function DashboardCustomizer({ state, refresh }) {
         body: JSON.stringify({
           bakongAccountId: bakongAccountId.replace(/\s+/g, ''),
           bakongToken: bakongToken.replace(/\s+/g, ''),
-          bakongEnv: bakongEnv
+          bakongEnv: bakongEnv,
+          abaMerchantLinkUsd: abaMerchantLinkUsd.trim(),
+          abaMerchantLinkKhr: abaMerchantLinkKhr.trim(),
+          usdPaymentMethod,
+          khrPaymentMethod,
+          presetUsd1,
+          presetUsd2,
+          presetUsd3,
+          presetUsd4,
+          presetUsd5,
+          minUsd,
+          maxUsd,
+          presetKhr1,
+          presetKhr2,
+          presetKhr3,
+          presetKhr4,
+          presetKhr5,
+          minKhr,
+          maxKhr
         })
       });
       refresh();
-      alert('Bakong KHQR credentials updated successfully!');
+      alert('Payment settings and credentials updated successfully!');
     } catch (err) {
       console.error(err);
-      alert('Error saving Bakong settings');
+      alert('Error saving payment settings');
     } finally {
       setUpdating(false);
     }
@@ -924,42 +976,6 @@ function DashboardCustomizer({ state, refresh }) {
             <label>Alert Sound URL (MP3/WAV)</label>
             <input type="text" value={soundUrl} onChange={e => setSoundUrl(e.target.value)} placeholder="https://..." />
           </div>
-          <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '10px' }}>
-            <input 
-              type="checkbox" 
-              checked={ttsEnabled} 
-              id="ttsEnabled"
-              onChange={e => setTtsEnabled(e.target.checked)} 
-              style={{ width: '20px', height: '20px', cursor: 'pointer' }}
-            />
-            <label htmlFor="ttsEnabled" style={{ margin: 0, cursor: 'pointer' }}>Enable TTS (Read messages aloud)</label>
-          </div>
-          {ttsEnabled && (
-            <div style={{ background: 'rgba(255,255,255,0.05)', padding: '15px', borderRadius: '8px', marginBottom: '15px' }}>
-              <div className="form-group">
-                <label>TTS Language</label>
-                <select value={ttsLang} onChange={e => setTtsLang(e.target.value)} style={{ width: '100%', padding: '8px', background: '#090a0f', color: '#fff', border: '1px solid var(--color-border)', borderRadius: '4px' }}>
-                  <option value="km-KH">Khmer (km-KH)</option>
-                  <option value="en-US">English (en-US)</option>
-                </select>
-              </div>
-              <div className="form-group">
-                <label>TTS Voice (Optional Clone / Browser Voice)</label>
-                <select value={ttsVoiceURI} onChange={e => setTtsVoiceURI(e.target.value)} style={{ width: '100%', padding: '8px', background: '#090a0f', color: '#fff', border: '1px solid var(--color-border)', borderRadius: '4px' }}>
-                  <option value="">-- Default Voice for Language --</option>
-                  {availableVoices.filter(v => v.lang.startsWith(ttsLang.split('-')[0]) || ttsLang === 'km-KH').map(v => (
-                    <option key={v.voiceURI} value={v.voiceURI}>
-                      {v.name} ({v.lang})
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="form-group" style={{ marginBottom: 0 }}>
-                <label>TTS Volume (0.0 to 1.0)</label>
-                <input type="number" step="0.1" min="0" max="1" value={ttsVolume} onChange={e => setTtsVolume(e.target.value)} />
-              </div>
-            </div>
-          )}
           <button type="submit" className="btn-primary" style={{ width: '100%', marginTop: '10px' }} disabled={updating}>
             Save Alert Settings
           </button>
@@ -1003,75 +1019,380 @@ function DashboardCustomizer({ state, refresh }) {
         </form>
       </div>
 
-      {/* Bakong KHQR Settings */}
-      <form onSubmit={saveBakongSettings} className="card">
-        <h3 className="card-title"><Coins size={20} /> Bakong KHQR Settings & Live Testing</h3>
-        <p style={{ color: 'var(--color-text-secondary)', fontSize: '14px', marginBottom: '20px' }}>
-          Configure your personal Bakong credentials. These values are used to generate your payment QR codes.
-        </p>
-        
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1.5fr', gap: '20px', marginBottom: '20px' }}>
-          <div className="form-group">
-            <label>Bakong Account ID</label>
-            <input 
-              type="text" 
-              value={bakongAccountId} 
-              onChange={e => setBakongAccountId(e.target.value)} 
-              placeholder="e.g. name@bank_code"
-              required
-            />
+      {/* Payment Settings & Credentials */}
+      <form onSubmit={saveBakongSettings} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+        {/* Credentials Section Card */}
+        <div className="card">
+          <h3 className="card-title"><Coins size={20} /> Payment Credentials</h3>
+          <p style={{ color: 'var(--color-text-secondary)', fontSize: '13px', marginBottom: '20px' }}>
+            Configure your ABA Merchant links and Bakong ID to receive tips from viewers.
+          </p>
+          
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
+            <div className="form-group">
+              <label>ABA Merchant Link (USD)</label>
+              <input 
+                type="text" 
+                value={abaMerchantLinkUsd} 
+                onChange={e => setAbaMerchantLinkUsd(e.target.value)} 
+                placeholder="https://link.payway.com.kh/ABAPAY..."
+              />
+            </div>
+            <div className="form-group">
+              <label>ABA Merchant Link (KHR)</label>
+              <input 
+                type="text" 
+                value={abaMerchantLinkKhr} 
+                onChange={e => setAbaMerchantLinkKhr(e.target.value)} 
+                placeholder="https://link.payway.com.kh/ABAPAY..."
+              />
+            </div>
           </div>
-          <div className="form-group">
-            <label>Bakong API Env</label>
-            <select 
-              value={bakongEnv} 
-              onChange={e => setBakongEnv(e.target.value)}
-              style={{ height: '42px' }}
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr 2fr', gap: '20px', marginBottom: '20px' }}>
+            <div className="form-group">
+              <label>Bakong ID (Account ID)</label>
+              <input 
+                type="text" 
+                value={bakongAccountId} 
+                onChange={e => setBakongAccountId(e.target.value)} 
+                placeholder="e.g. name@bank_code"
+              />
+            </div>
+            <div className="form-group">
+              <label>Bakong Env</label>
+              <select 
+                value={bakongEnv} 
+                onChange={e => setBakongEnv(e.target.value)}
+                style={{ height: '42px' }}
+              >
+                <option value="production">Production</option>
+                <option value="sandbox">Sandbox</option>
+              </select>
+            </div>
+            <div className="form-group">
+              <label>Bakong Open API JWT Token (optional, for auto-check)</label>
+              <input 
+                type="text" 
+                value={bakongToken} 
+                onChange={e => setBakongToken(e.target.value)} 
+                placeholder="JWT Token starting with eyJhbGc..."
+                style={{ fontSize: '11px', fontFamily: 'monospace' }}
+              />
+            </div>
+          </div>
+
+          {testResult && (
+            <div style={{ 
+              background: testResult.success ? 'rgba(57, 255, 20, 0.08)' : 'rgba(230, 57, 70, 0.08)', 
+              border: `1px solid ${testResult.success ? 'var(--color-success)' : 'var(--color-secondary)'}`, 
+              color: testResult.success ? 'var(--color-success)' : '#fff', 
+              padding: '12px', 
+              borderRadius: '8px', 
+              marginBottom: '16px', 
+              fontSize: '13px'
+            }}>
+              <strong>Status:</strong> {testResult.message}
+            </div>
+          )}
+
+          <div style={{ display: 'flex', gap: '15px' }}>
+            <button 
+              type="button" 
+              className="btn-secondary" 
+              onClick={testBakongConnection} 
+              disabled={testingStatus === 'testing' || !bakongAccountId || !bakongToken}
+              style={{ padding: '8px 16px', fontSize: '13px' }}
             >
-              <option value="production">Production (Live)</option>
-              <option value="sandbox">Sandbox (Testing)</option>
-            </select>
-          </div>
-          <div className="form-group">
-            <label>Bakong Open API Access Token (JWT Bearer)</label>
-            <textarea 
-              rows="2"
-              value={bakongToken} 
-              onChange={e => setBakongToken(e.target.value)} 
-              placeholder="eyJhbGciOiJIUzI1Ni..."
-              style={{ fontSize: '12px', fontFamily: 'monospace', height: '42px', minHeight: '42px' }}
-              required
-            />
+              {testingStatus === 'testing' ? 'Testing Connection...' : 'Verify Bakong Token Connection'}
+            </button>
           </div>
         </div>
 
-        {testResult && (
-          <div style={{ 
-            background: testResult.success ? 'rgba(57, 255, 20, 0.08)' : 'rgba(230, 57, 70, 0.08)', 
-            border: `1px solid ${testResult.success ? 'var(--color-success)' : 'var(--color-secondary)'}`, 
-            color: testResult.success ? 'var(--color-success)' : '#fff', 
-            padding: '14px', 
-            borderRadius: '8px', 
-            marginBottom: '20px', 
-            fontSize: '14px'
-          }}>
-            <strong>Connection Status:</strong> {testResult.message}
+        {/* Currency Settings Grid */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+          {/* USD Settings Card */}
+          <div className="card">
+            <h3 className="card-title">$ USD Settings</h3>
+            
+            {usdPaymentMethod === 'aba' && !abaMerchantLinkUsd && (
+              <div className="settings-warning-text">
+                ⚠️ Payment Method - ABA Merchant Link (USD) not configured.
+              </div>
+            )}
+            {usdPaymentMethod === 'bakong' && !bakongAccountId && (
+              <div className="settings-warning-text">
+                ⚠️ Payment Method - Bakong ID not configured.
+              </div>
+            )}
+            {((usdPaymentMethod === 'aba' && abaMerchantLinkUsd) || (usdPaymentMethod === 'bakong' && bakongAccountId)) && (
+              <div style={{ fontSize: '12px', color: 'var(--color-success)', marginBottom: '10px' }}>
+                ✓ Payment Method configured.
+              </div>
+            )}
+
+            <label style={{ fontSize: '12px', textTransform: 'uppercase', color: 'var(--color-text-secondary)', display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>Payment Method</label>
+            <div className="gateway-selection-grid">
+              <div 
+                className={`gateway-select-card ${usdPaymentMethod === 'aba' ? 'active' : ''}`}
+                onClick={() => setUsdPaymentMethod('aba')}
+                type="button"
+              >
+                <div className="gateway-logo-wrapper">
+                  <div className="gateway-logo-aba">aba</div>
+                </div>
+                <div className="gateway-card-title">ABA PayWay</div>
+              </div>
+
+              <div 
+                className={`gateway-select-card ${usdPaymentMethod === 'bakong' ? 'active' : ''}`}
+                onClick={() => setUsdPaymentMethod('bakong')}
+                type="button"
+              >
+                <div className="gateway-logo-wrapper">
+                  <div className="gateway-logo-bakong">bk</div>
+                </div>
+                <div className="gateway-card-title">Bakong</div>
+              </div>
+            </div>
+
+            <div style={{ marginTop: '20px' }}>
+              <label style={{ fontSize: '12px', textTransform: 'uppercase', color: 'var(--color-text-secondary)', display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>Preset Amounts ($) — set to 0 to hide</label>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '8px', marginBottom: '16px' }}>
+                <input type="text" value={presetUsd1} onChange={e => setPresetUsd1(e.target.value)} style={{ padding: '8px 4px', textAlign: 'center', fontSize: '12px' }} />
+                <input type="text" value={presetUsd2} onChange={e => setPresetUsd2(e.target.value)} style={{ padding: '8px 4px', textAlign: 'center', fontSize: '12px' }} />
+                <input type="text" value={presetUsd3} onChange={e => setPresetUsd3(e.target.value)} style={{ padding: '8px 4px', textAlign: 'center', fontSize: '12px' }} />
+                <input type="text" value={presetUsd4} onChange={e => setPresetUsd4(e.target.value)} style={{ padding: '8px 4px', textAlign: 'center', fontSize: '12px' }} />
+                <input type="text" value={presetUsd5} onChange={e => setPresetUsd5(e.target.value)} style={{ padding: '8px 4px', textAlign: 'center', fontSize: '12px' }} />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label style={{ fontSize: '11px' }}>Min Amount ($)</label>
+                  <input type="text" value={minUsd} onChange={e => setMinUsd(e.target.value)} placeholder="None" style={{ padding: '8px 10px', fontSize: '12px' }} />
+                </div>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label style={{ fontSize: '11px' }}>Max Amount ($)</label>
+                  <input type="text" value={maxUsd} onChange={e => setMaxUsd(e.target.value)} placeholder="None" style={{ padding: '8px 10px', fontSize: '12px' }} />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* KHR Settings Card */}
+          <div className="card">
+            <h3 className="card-title">៛ KHR Settings</h3>
+
+            {khrPaymentMethod === 'aba' && !abaMerchantLinkKhr && (
+              <div className="settings-warning-text">
+                ⚠️ Payment Method - ABA Merchant Link (KHR) not configured.
+              </div>
+            )}
+            {khrPaymentMethod === 'bakong' && !bakongAccountId && (
+              <div className="settings-warning-text">
+                ⚠️ Payment Method - Bakong ID not configured.
+              </div>
+            )}
+            {((khrPaymentMethod === 'aba' && abaMerchantLinkKhr) || (khrPaymentMethod === 'bakong' && bakongAccountId)) && (
+              <div style={{ fontSize: '12px', color: 'var(--color-success)', marginBottom: '10px' }}>
+                ✓ Payment Method configured.
+              </div>
+            )}
+
+            <label style={{ fontSize: '12px', textTransform: 'uppercase', color: 'var(--color-text-secondary)', display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>Payment Method</label>
+            <div className="gateway-selection-grid">
+              <div 
+                className={`gateway-select-card ${khrPaymentMethod === 'aba' ? 'active' : ''}`}
+                onClick={() => setKhrPaymentMethod('aba')}
+                type="button"
+              >
+                <div className="gateway-logo-wrapper">
+                  <div className="gateway-logo-aba">aba</div>
+                </div>
+                <div className="gateway-card-title">ABA PayWay</div>
+              </div>
+
+              <div 
+                className={`gateway-select-card ${khrPaymentMethod === 'bakong' ? 'active' : ''}`}
+                onClick={() => setKhrPaymentMethod('bakong')}
+                type="button"
+              >
+                <div className="gateway-logo-wrapper">
+                  <div className="gateway-logo-bakong">bk</div>
+                </div>
+                <div className="gateway-card-title">Bakong</div>
+              </div>
+            </div>
+
+            <div style={{ marginTop: '20px' }}>
+              <label style={{ fontSize: '12px', textTransform: 'uppercase', color: 'var(--color-text-secondary)', display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>Preset Amounts (៛) — set to 0 to hide</label>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '8px', marginBottom: '16px' }}>
+                <input type="text" value={presetKhr1} onChange={e => setPresetKhr1(e.target.value)} style={{ padding: '8px 4px', textAlign: 'center', fontSize: '11px' }} />
+                <input type="text" value={presetKhr2} onChange={e => setPresetKhr2(e.target.value)} style={{ padding: '8px 4px', textAlign: 'center', fontSize: '11px' }} />
+                <input type="text" value={presetKhr3} onChange={e => setPresetKhr3(e.target.value)} style={{ padding: '8px 4px', textAlign: 'center', fontSize: '11px' }} />
+                <input type="text" value={presetKhr4} onChange={e => setPresetKhr4(e.target.value)} style={{ padding: '8px 4px', textAlign: 'center', fontSize: '11px' }} />
+                <input type="text" value={presetKhr5} onChange={e => setPresetKhr5(e.target.value)} style={{ padding: '8px 4px', textAlign: 'center', fontSize: '11px' }} />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label style={{ fontSize: '11px' }}>Min Amount (៛)</label>
+                  <input type="text" value={minKhr} onChange={e => setMinKhr(e.target.value)} placeholder="None" style={{ padding: '8px 10px', fontSize: '12px' }} />
+                </div>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label style={{ fontSize: '11px' }}>Max Amount (៛)</label>
+                  <input type="text" value={maxKhr} onChange={e => setMaxKhr(e.target.value)} placeholder="None" style={{ padding: '8px 10px', fontSize: '12px' }} />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Global Save Button */}
+        <button type="submit" className="steam-neon-btn steam-neon-btn-primary" style={{ padding: '16px' }} disabled={updating}>
+          {updating ? 'Saving All Settings...' : 'Save All Payment Settings'}
+        </button>
+      </form>
+    </div>
+  );
+}
+
+// --- TTS SETTINGS ---
+function DashboardTTS({ state, refresh }) {
+  const loggedInUser = localStorage.getItem('username');
+  const [ttsEnabled, setTtsEnabled] = useState(false);
+  const [ttsVolume, setTtsVolume] = useState(1);
+  const [ttsLang, setTtsLang] = useState('km-KH');
+  const [ttsVoiceURI, setTtsVoiceURI] = useState('');
+  const [updating, setUpdating] = useState(false);
+
+  useEffect(() => {
+    if (state.settings) {
+      setTtsEnabled(state.settings.ttsEnabled || false);
+      setTtsVolume(state.settings.ttsVolume ?? 1);
+      setTtsLang(state.settings.ttsLang || 'km-KH');
+      setTtsVoiceURI(state.settings.ttsVoiceURI || '');
+    }
+  }, [state]);
+
+  const saveTtsSettings = async (e) => {
+    e.preventDefault();
+    setUpdating(true);
+    try {
+      await fetch(`${API_BASE}/api/settings`, {
+        method: 'PUT',
+        headers: { 
+          'Content-Type': 'application/json',
+          'X-Username': loggedInUser || ''
+        },
+        body: JSON.stringify({
+          ttsEnabled,
+          ttsVolume: parseFloat(ttsVolume),
+          ttsLang,
+          ttsVoiceURI
+        })
+      });
+      refresh();
+      alert('TTS Settings updated successfully!');
+    } catch (err) {
+      console.error(err);
+      alert('Error saving TTS settings');
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const handleTestTTS = () => {
+    const testText = ttsLang === 'km-KH' 
+      ? 'សួស្តី នេះជាការសាកល្បងសំឡេងរបស់ខ្ញុំ' 
+      : 'Hello, this is a test of my voice';
+      
+    if (ttsVoiceURI === 'browser') {
+      const utter = new SpeechSynthesisUtterance(testText);
+      utter.lang = ttsLang;
+      utter.volume = parseFloat(ttsVolume);
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.speak(utter);
+    } else {
+      const voice = ttsVoiceURI || 'Sreymom';
+      const ttsUrl = `${API_BASE}/api/tts?text=${encodeURIComponent(testText)}&voice=${encodeURIComponent(voice)}`;
+      const audio = new Audio(ttsUrl);
+      audio.volume = parseFloat(ttsVolume);
+      audio.play().catch(err => {
+        console.error('TTS preview failed:', err);
+        alert('Could not play TTS preview. Make sure the server is running.');
+      });
+    }
+  };
+
+  return (
+    <div style={{ maxWidth: '800px' }}>
+      <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '28px', marginBottom: '24px', textTransform: 'uppercase', color: '#fff' }}>
+        Text-To-Speech (TTS) Settings
+      </h2>
+      <p style={{ color: 'var(--color-text-secondary)', marginBottom: '24px' }}>
+        Configure the TTS system to read donation messages and alerts aloud.
+      </p>
+
+      <form onSubmit={saveTtsSettings} className="card">
+        <h3 className="card-title">
+          <Volume2 size={20} /> TTS Configuration
+        </h3>
+        
+        <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '10px', marginBottom: '20px' }}>
+          <input 
+            type="checkbox" 
+            checked={ttsEnabled} 
+            id="ttsEnabled"
+            onChange={e => setTtsEnabled(e.target.checked)} 
+            style={{ width: '20px', height: '20px', cursor: 'pointer' }}
+          />
+          <label htmlFor="ttsEnabled" style={{ margin: 0, cursor: 'pointer', fontSize: '16px', fontWeight: '600' }}>
+            Enable TTS (Read messages aloud)
+          </label>
+        </div>
+
+        {ttsEnabled && (
+          <div style={{ background: 'rgba(255,255,255,0.02)', padding: '20px', borderRadius: '8px', border: '1px solid var(--color-border)', marginBottom: '20px' }}>
+            <div className="form-group">
+              <label>TTS Language</label>
+              <select value={ttsLang} onChange={e => setTtsLang(e.target.value)} style={{ width: '100%', padding: '8px', background: '#090a0f', color: '#fff', border: '1px solid var(--color-border)', borderRadius: '4px' }}>
+                <option value="km-KH">Khmer (km-KH)</option>
+                <option value="en-US">English (en-US)</option>
+              </select>
+            </div>
+            
+            <div className="form-group">
+              <label>TTS Voice (Custom Cloud / Browser Default)</label>
+              <select value={ttsVoiceURI} onChange={e => setTtsVoiceURI(e.target.value)} style={{ width: '100%', padding: '8px', background: '#090a0f', color: '#fff', border: '1px solid var(--color-border)', borderRadius: '4px' }}>
+                <option value="Sreymom">Sreymom (Premium Khmer Female)</option>
+                <option value="Piseth">Piseth (Premium Khmer Male)</option>
+                <option value="Chingchang">Chingchang (Premium Meme Voice)</option>
+                <option value="browser">Local Browser Default (Speech Synthesis)</option>
+              </select>
+            </div>
+
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label>TTS Volume (0.0 to 1.0)</label>
+              <input type="number" step="0.1" min="0" max="1" value={ttsVolume} onChange={e => setTtsVolume(e.target.value)} />
+            </div>
+
+            <div style={{ marginTop: '20px' }}>
+              <button
+                type="button"
+                onClick={handleTestTTS}
+                className="btn-secondary"
+                style={{ width: '100%', borderColor: 'var(--color-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+              >
+                🔊 Preview TTS Voice
+              </button>
+            </div>
           </div>
         )}
 
-        <div style={{ display: 'flex', gap: '15px', marginTop: '10px' }}>
-          <button type="submit" className="btn-accent" disabled={updating}>
-            Save Credentials
-          </button>
-          <button 
-            type="button" 
-            className="btn-secondary" 
-            onClick={testBakongConnection} 
-            disabled={testingStatus === 'testing' || !bakongAccountId || !bakongToken}
-          >
-            {testingStatus === 'testing' ? 'Testing Connection...' : 'Test Connection to NBC API'}
-          </button>
-        </div>
+        <button type="submit" className="btn-primary" style={{ width: '100%', marginTop: '10px' }} disabled={updating}>
+          Save TTS Settings
+        </button>
       </form>
     </div>
   );
@@ -1135,6 +1456,15 @@ function AlertBoxOverlay() {
   const [activeAlert, setActiveAlert] = useState(null);
   const queueRef = useRef([]);
   const isPlayingRef = useRef(false);
+  const [audioBlocked, setAudioBlocked] = useState(false);
+
+  const unlockAudio = () => {
+    // Play a silent sound to unlock audio context
+    const audio = new Audio('data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAAA');
+    audio.play().then(() => {
+      setAudioBlocked(false);
+    }).catch(err => console.error("Unlock audio failed:", err));
+  };
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -1166,28 +1496,71 @@ function AlertBoxOverlay() {
       if (nextAlert.settings?.soundUrl) {
         const audio = new Audio(nextAlert.settings.soundUrl);
         audio.volume = nextAlert.settings.soundVolume ?? 0.8;
-        audio.play().catch(e => console.error("Error playing audio:", e));
+        audio.play().catch(e => {
+          console.error("Error playing audio:", e);
+          if (e.name === 'NotAllowedError') {
+            setAudioBlocked(true);
+          }
+        });
       }
 
       if (nextAlert.settings?.ttsEnabled) {
-        const utter = new SpeechSynthesisUtterance();
-        utter.lang = nextAlert.settings?.ttsLang || 'km-KH';
-        utter.volume = nextAlert.settings?.ttsVolume ?? 1;
-        
-        if (nextAlert.settings?.ttsVoiceURI) {
-          const voices = window.speechSynthesis.getVoices();
-          const selectedVoice = voices.find(v => v.voiceURI === nextAlert.settings.ttsVoiceURI);
-          if (selectedVoice) utter.voice = selectedVoice;
+        let ttsText = '';
+        if (nextAlert.amount) {
+          const template = nextAlert.settings?.donationTextTemplate;
+          if (template) {
+            let amountStr = '';
+            const cur = (nextAlert.currency || 'USD').toUpperCase();
+            if (cur === 'KHR') {
+              amountStr = `${nextAlert.amount} រៀល`;
+            } else {
+              amountStr = `${nextAlert.amount} ដុល្លារ`;
+            }
+            ttsText = template
+              .replace(/{name}/g, nextAlert.name)
+              .replace(/{amount}/g, amountStr);
+          } else {
+            const cur = (nextAlert.currency || 'USD').toUpperCase();
+            if (cur === 'KHR') {
+              ttsText = `${nextAlert.name} បានផ្ញើ ${nextAlert.amount} រៀល`;
+            } else {
+              ttsText = `${nextAlert.name} បានផ្ញើ ${nextAlert.amount} ដុល្លារ`;
+            }
+          }
+          if (nextAlert.message) {
+            ttsText += `. ${nextAlert.message}`;
+          }
+        } else {
+          const template = nextAlert.settings?.followTextTemplate;
+          if (template) {
+            ttsText = template.replace(/{name}/g, nextAlert.name);
+          } else {
+            ttsText = `${nextAlert.name} បានតាមដាន`;
+          }
         }
 
-        if (nextAlert.amount) {
-          utter.text = `${nextAlert.name} បានផ្ញើ ${nextAlert.amount} ដុល្លារ`;
-          if (nextAlert.message) utter.text += `. ${nextAlert.message}`;
+        const voiceType = nextAlert.settings?.ttsVoiceURI || 'Sreymom';
+
+        if (voiceType === 'browser') {
+          const utter = new SpeechSynthesisUtterance(ttsText);
+          utter.lang = nextAlert.settings?.ttsLang || 'km-KH';
+          utter.volume = nextAlert.settings?.ttsVolume ?? 1;
+          window.speechSynthesis.cancel();
+          window.speechSynthesis.speak(utter);
         } else {
-          utter.text = `${nextAlert.name} បានតាមដាន`;
+          const volume = nextAlert.settings?.ttsVolume ?? 1;
+          setTimeout(() => {
+            const ttsUrl = `${API_BASE}/api/tts?text=${encodeURIComponent(ttsText)}&voice=${encodeURIComponent(voiceType)}`;
+            const audio = new Audio(ttsUrl);
+            audio.volume = volume;
+            audio.play().catch(e => {
+              console.error("Error playing cloud TTS:", e);
+              if (e.name === 'NotAllowedError') {
+                setAudioBlocked(true);
+              }
+            });
+          }, 1200);
         }
-        window.speechSynthesis.cancel();
-        window.speechSynthesis.speak(utter);
       }
 
       setTimeout(() => {
@@ -1199,10 +1572,67 @@ function AlertBoxOverlay() {
     return () => ws.close();
   }, []);
 
-  if (!activeAlert) return <div className="overlay-container"></div>;
+  if (!activeAlert) {
+    return (
+      <div className="overlay-container">
+        {audioBlocked && (
+          <button 
+            onClick={unlockAudio}
+            style={{
+              position: 'fixed',
+              top: '20px',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              background: 'rgba(255, 0, 127, 0.9)',
+              color: '#fff',
+              border: '1px solid var(--color-secondary)',
+              boxShadow: '0 0 15px rgba(255, 0, 127, 0.6)',
+              padding: '10px 20px',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              zIndex: 9999,
+              fontFamily: 'var(--font-display)',
+              fontWeight: 'bold',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}
+          >
+            <Volume2 size={16} /> Click to Unblock Sound/TTS
+          </button>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="overlay-container">
+      {audioBlocked && (
+        <button 
+          onClick={unlockAudio}
+          style={{
+            position: 'fixed',
+            top: '20px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            background: 'rgba(255, 0, 127, 0.9)',
+            color: '#fff',
+            border: '1px solid var(--color-secondary)',
+            boxShadow: '0 0 15px rgba(255, 0, 127, 0.6)',
+            padding: '10px 20px',
+            borderRadius: '8px',
+            cursor: 'pointer',
+            zIndex: 9999,
+            fontFamily: 'var(--font-display)',
+            fontWeight: 'bold',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}
+        >
+          <Volume2 size={16} /> Click to Unblock Sound/TTS
+        </button>
+      )}
       <div className="alert-box" key={activeAlert.timestamp}>
         {activeAlert.settings?.gifUrl && (
           <img src={activeAlert.settings.gifUrl} alt="Alert GIF" className="alert-gif" />
@@ -1325,14 +1755,28 @@ function PublicDonationPage() {
   const [message, setMessage] = useState('');
   const [currency, setCurrency] = useState('USD');
   const [loading, setLoading] = useState(false);
-  const [qrCodeOpen, setQrCodeOpen] = useState(false);
+  
+  // Checkout Wizard steps
+  const [checkoutStep, setCheckoutStep] = useState(1); // 1 = Details, 2 = Pay Method, 3 = Pay Box
+  const [payMethod, setPayMethod] = useState('aba'); // 'aba', 'khqr', 'card'
+  
+  // Credit Card mock inputs
+  const [cardNumber, setCardNumber] = useState('');
+  const [cardHolder, setCardHolder] = useState('');
+  const [cardExpiry, setCardExpiry] = useState('');
+  const [cardCvv, setCardCvv] = useState('');
+  const [cardSubmitted, setCardSubmitted] = useState(false);
+  const [cardError, setCardError] = useState('');
+
   const [success, setSuccess] = useState(false);
+  const [successDetails, setSuccessDetails] = useState({ name: '', amount: 0, currency: 'USD' });
   const [qrDataUrl, setQrDataUrl] = useState('');
   const [qrString, setQrString] = useState('');
   const [transactionMd5, setTransactionMd5] = useState('');
   const [timeLeft, setTimeLeft] = useState(300); // 5 minutes validity
   const [errorText, setErrorText] = useState('');
   const [isGeoBlocked, setIsGeoBlocked] = useState(false);
+  const [paymentCode, setPaymentCode] = useState('');
 
   // 1. Check query parameters on load
   useEffect(() => {
@@ -1382,9 +1826,23 @@ function PublicDonationPage() {
     fetchStreamer();
   }, [streamerName]);
 
-  // Polling loop for payment confirmation and countdown timer
+  const activeMethod = currency === 'KHR'
+    ? (streamerInfo?.settings?.khrPaymentMethod || 'bakong')
+    : (streamerInfo?.settings?.usdPaymentMethod || 'bakong');
+
   useEffect(() => {
-    if (!qrCodeOpen || !transactionMd5) return;
+    if (activeMethod === 'aba') {
+      setPayMethod('aba_merchant');
+    } else {
+      if (payMethod === 'aba_merchant') {
+        setPayMethod('aba');
+      }
+    }
+  }, [activeMethod]);
+
+  // Polling loop for payment confirmation and countdown timer (only for QR codes)
+  useEffect(() => {
+    if (checkoutStep !== 3 || !transactionMd5 || payMethod === 'card' || payMethod === 'aba_merchant') return;
 
     let pollInterval;
     let timerInterval;
@@ -1411,12 +1869,16 @@ function PublicDonationPage() {
                 const confirmRes = await fetch(`/api/donate/confirm`, {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ md5: transactionMd5 })
+                  body: JSON.stringify({ 
+                    md5: transactionMd5,
+                    remark: clientData.data?.remark || null
+                  })
                 });
                 const confirmData = await confirmRes.json();
                 if (confirmRes.ok && confirmData.success) {
+                  setSuccessDetails({ name, amount: parseFloat(amount) || 0, currency });
                   setSuccess(true);
-                  setQrCodeOpen(false);
+                  setCheckoutStep(1);
                   setTransactionMd5('');
                   setQrDataUrl('');
                   setQrString('');
@@ -1429,13 +1891,11 @@ function PublicDonationPage() {
                 // Still pending — keep polling
               } else {
                 setErrorText(clientData?.responseMessage || 'Payment processing failed.');
-                setQrCodeOpen(false);
+                setCheckoutStep(2);
                 setTransactionMd5('');
               }
             }
           } catch (corsErr) {
-            // NBC API CORS blocks Authorization header from browsers.
-            // Fall back to manual "I've Paid" button.
             console.warn('Browser-side CORS block. Showing manual confirm.', corsErr);
             clearInterval(pollInterval);
             setIsGeoBlocked(true);
@@ -1446,8 +1906,9 @@ function PublicDonationPage() {
           
           if (response.ok && data.success) {
             if (data.status === 'paid') {
+              setSuccessDetails({ name, amount: parseFloat(amount) || 0, currency });
               setSuccess(true);
-              setQrCodeOpen(false);
+              setCheckoutStep(1);
               setTransactionMd5('');
               setQrDataUrl('');
               setQrString('');
@@ -1459,7 +1920,7 @@ function PublicDonationPage() {
               clientVerifyUrl = data.apiUrl;
             } else if (data.status === 'failed') {
               setErrorText(data.message || 'Payment processing failed.');
-              setQrCodeOpen(false);
+              setCheckoutStep(2);
               setTransactionMd5('');
             }
           }
@@ -1474,7 +1935,7 @@ function PublicDonationPage() {
         if (prev <= 1) {
           clearInterval(pollInterval);
           clearInterval(timerInterval);
-          setQrCodeOpen(false);
+          setCheckoutStep(2);
           setTransactionMd5('');
           alert('Payment request expired. Please try again.');
           return 0;
@@ -1487,7 +1948,7 @@ function PublicDonationPage() {
       clearInterval(pollInterval);
       clearInterval(timerInterval);
     };
-  }, [qrCodeOpen, transactionMd5]);
+  }, [checkoutStep, transactionMd5, payMethod]);
 
   const handleSearchStreamer = (e) => {
     e.preventDefault();
@@ -1496,7 +1957,7 @@ function PublicDonationPage() {
     }
   };
 
-  const handleSubmit = async (e) => {
+  const handleDetailsSubmit = (e) => {
     e.preventDefault();
     if (!name.trim() || !amount || isNaN(amount)) {
       alert('Please fill out all fields with valid information.');
@@ -1515,16 +1976,21 @@ function PublicDonationPage() {
         return;
       }
     }
-    
+
+    setCheckoutStep(2);
+  };
+
+  const initiatePayment = async () => {
     setLoading(true);
     setErrorText('');
+    setCardError('');
     try {
       const response = await fetch('/api/donate/initiate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: name.trim(),
-          amount: numericAmount,
+          amount: parseFloat(amount),
           currency,
           message: message.trim(),
           username: streamerName
@@ -1535,10 +2001,11 @@ function PublicDonationPage() {
         setQrDataUrl(data.qrDataUrl);
         setQrString(data.qrString || '');
         setTransactionMd5(data.md5);
+        setPaymentCode(data.paymentCode || '');
         setTimeLeft(300); // Reset timer
-        setQrCodeOpen(true);
+        setCheckoutStep(3);
       } else {
-        alert(data.error || 'Failed to generate payment QR code.');
+        alert(data.error || 'Failed to initiate transaction.');
       }
     } catch (err) {
       console.error(err);
@@ -1546,6 +2013,88 @@ function PublicDonationPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleCardSubmit = async (e) => {
+    e.preventDefault();
+    if (cardNumber.replace(/\s+/g, '').length !== 16) {
+      setCardError('Card Number must be exactly 16 digits.');
+      return;
+    }
+    if (!cardHolder.trim()) {
+      setCardError('Cardholder Name is required.');
+      return;
+    }
+    if (!/^\d{2}\/\d{2}$/.test(cardExpiry)) {
+      setCardError('Expiry Date must be in MM/YY format.');
+      return;
+    }
+    if (cardCvv.length !== 3 || isNaN(cardCvv)) {
+      setCardError('CVV must be exactly 3 digits.');
+      return;
+    }
+
+    setCardSubmitted(true);
+    setCardError('');
+
+    // Simulate PayWay credit card authentication latency
+    setTimeout(async () => {
+      try {
+        const res = await fetch('/api/donate/confirm', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            md5: transactionMd5,
+            remark: `[ABA PayWay Card] ${message.trim()}`
+          })
+        });
+        const d = await res.json();
+        if (res.ok && d.success) {
+          setSuccessDetails({ name, amount: parseFloat(amount) || 0, currency });
+          setSuccess(true);
+          setCheckoutStep(1);
+          setTransactionMd5('');
+          setCardNumber('');
+          setCardHolder('');
+          setCardExpiry('');
+          setCardCvv('');
+          setName('');
+          setAmount('');
+          setMessage('');
+        } else {
+          setCardError(d.error || 'Card processing failed. Please check details.');
+        }
+      } catch (e) {
+        setCardError('Network error during card authorization. Please try again.');
+      } finally {
+        setCardSubmitted(false);
+      }
+    }, 1800);
+  };
+
+  const formatCardNumber = (value) => {
+    const v = value.replace(/\s+/g, '').replace(/[^0-9]/gi, '');
+    const matches = v.match(/\d{4,16}/g);
+    const match = (matches && matches[0]) || '';
+    const parts = [];
+
+    for (let i = 0, len = match.length; i < len; i += 4) {
+      parts.push(match.substring(i, i + 4));
+    }
+
+    if (parts.length > 0) {
+      return parts.join(' ');
+    } else {
+      return v;
+    }
+  };
+
+  const formatExpiry = (value) => {
+    const v = value.replace(/\s+/g, '').replace(/[^0-9]/gi, '');
+    if (v.length >= 2) {
+      return `${v.slice(0, 2)}/${v.slice(2, 4)}`;
+    }
+    return v;
   };
 
   const formatTime = (seconds) => {
@@ -1557,25 +2106,30 @@ function PublicDonationPage() {
   // View: If no user selected
   if (!streamerName) {
     return (
-      <div style={{ background: '#090a0f', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-        <div className="donation-form-container" style={{ maxWidth: '450px' }}>
+      <div className="steam-neon-page" style={{ justifyContent: 'center', alignItems: 'center', padding: '20px' }}>
+        <div className="steam-neon-card" style={{ maxWidth: '450px', width: '100%' }}>
           <div style={{ textAlign: 'center', marginBottom: '30px' }}>
-            <h2 style={{ fontFamily: 'var(--font-display)', color: '#fff', fontSize: '28px', textTransform: 'uppercase', marginBottom: '8px' }}>Support A Streamer</h2>
-            <p style={{ color: 'var(--color-text-secondary)' }}>Enter the username of the streamer you wish to support</p>
+            <h2 style={{ fontFamily: 'var(--font-display)', color: '#fff', fontSize: '28px', textTransform: 'uppercase', marginBottom: '8px', letterSpacing: '1px' }}>
+              SUPPORT A <span>STREAMER</span>
+            </h2>
+            <p style={{ color: 'var(--color-text-secondary)', fontSize: '14px' }}>Enter the streamer username to open their neon gateway</p>
           </div>
           <form onSubmit={handleSearchStreamer}>
-            <div className="form-group">
+            <div className="steam-input-group">
               <label>Streamer Username</label>
-              <input 
-                type="text" 
-                value={streamerInput} 
-                onChange={e => setStreamerInput(e.target.value)} 
-                required 
-                placeholder="e.g. kheang"
-              />
+              <div className="steam-input-wrapper">
+                <span className="steam-input-icon"><User size={18} /></span>
+                <input 
+                  type="text" 
+                  value={streamerInput} 
+                  onChange={e => setStreamerInput(e.target.value)} 
+                  required 
+                  placeholder="e.g. kheang"
+                />
+              </div>
             </div>
-            <button type="submit" className="btn-primary" style={{ width: '100%', padding: '12px', fontSize: '15px', marginTop: '10px' }}>
-              Find Streamer Page
+            <button type="submit" className="steam-neon-btn steam-neon-btn-primary" style={{ marginTop: '10px' }}>
+              Find Streamer Page <ChevronRight size={16} />
             </button>
           </form>
         </div>
@@ -1586,8 +2140,11 @@ function PublicDonationPage() {
   // View: Streamer Loading
   if (loadingStreamer) {
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', background: '#090a0f', color: '#00f0ff', fontFamily: 'Rajdhani', fontSize: '24px' }}>
-        RETRIEVING STREAMER INFO...
+      <div className="steam-neon-page" style={{ justifyContent: 'center', alignItems: 'center', color: 'var(--color-primary)', fontFamily: 'var(--font-display)', fontSize: '24px', letterSpacing: '2px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '15px' }}>
+          <div className="pulse-loader" style={{ width: '20px', height: '20px' }}></div>
+          RETRIEVING NEON GATEWAY...
+        </div>
       </div>
     );
   }
@@ -1595,292 +2152,707 @@ function PublicDonationPage() {
   // View: Streamer Not Found
   if (streamerNotFound) {
     return (
-      <div style={{ background: '#090a0f', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-        <div className="donation-form-container" style={{ textAlign: 'center', maxWidth: '450px' }}>
-          <h2 style={{ fontFamily: 'var(--font-display)', color: 'var(--color-secondary)', fontSize: '28px', marginBottom: '15px' }}>STREAMER NOT FOUND</h2>
-          <p style={{ color: 'var(--color-text-secondary)', marginBottom: '30px' }}>The user account <strong>"{streamerName}"</strong> does not exist or has not been configured yet.</p>
-          <button className="btn-secondary" style={{ width: '100%' }} onClick={() => setStreamerName('')}>Try Another Username</button>
+      <div className="steam-neon-page" style={{ justifyContent: 'center', alignItems: 'center', padding: '20px' }}>
+        <div className="steam-neon-card" style={{ textAlign: 'center', maxWidth: '450px', width: '100%' }}>
+          <h2 style={{ fontFamily: 'var(--font-display)', color: 'var(--color-secondary)', fontSize: '28px', marginBottom: '15px', textTransform: 'uppercase' }}>
+            GATEWAY OFFLINE
+          </h2>
+          <p style={{ color: 'var(--color-text-secondary)', marginBottom: '30px', fontSize: '14px' }}>
+            The streamer account <strong>"{streamerName}"</strong> does not exist or has not configured their credentials yet.
+          </p>
+          <button className="steam-neon-btn steam-neon-btn-secondary" onClick={() => setStreamerName('')}>
+            <ChevronLeft size={16} /> Try Another Username
+          </button>
         </div>
       </div>
     );
   }
 
   return (
-    <>
-    <div style={{ background: '#090a0f', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-      {!success ? (
-        <div className="donation-form-container">
-          <div style={{ textAlign: 'center', marginBottom: '30px' }}>
-            <h2 style={{ fontFamily: 'var(--font-display)', color: '#fff', fontSize: '28px', textTransform: 'uppercase', marginBottom: '8px' }}>
-              Support <span style={{ color: 'var(--color-primary)' }}>{streamerName}</span>
-            </h2>
-            <p style={{ color: 'var(--color-text-secondary)' }}>Send a tip and shoutout directly to their stream overlay!</p>
+    <div className="steam-neon-page">
+      {/* Header bar */}
+      <header className="steam-neon-header">
+        <div className="steam-neon-header-container">
+          <div className="steam-logo">
+            KHEANG<span>ALERT</span>
           </div>
-          
-          {streamerInfo?.goal?.active && (
-            <div style={{ background: '#171923', padding: '14px', borderRadius: '8px', border: '1px solid var(--color-border)', marginBottom: '20px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', fontSize: '13px' }}>
-                <span style={{ fontWeight: 'bold' }}>Goal: {streamerInfo.goal.title}</span>
-                <span style={{ color: 'var(--color-primary)' }}>{Math.round((streamerInfo.goal.current / streamerInfo.goal.target) * 100)}%</span>
+          <ul className="steam-nav-links">
+            <li className="steam-nav-item">Store</li>
+            <li className="steam-nav-item">Community</li>
+            <li className="steam-nav-item active">Support</li>
+          </ul>
+        </div>
+      </header>
+
+      {/* Main content grid */}
+      <div className="steam-neon-container">
+        {/* Left Side: Checkout Flow */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          {!success ? (
+            <div className="steam-neon-card">
+              {/* Wizard Steps indicator */}
+              <div className="wizard-steps-header">
+                <div className={`wizard-step-indicator ${checkoutStep >= 1 ? 'active' : ''} ${checkoutStep > 1 ? 'completed' : ''}`}>
+                  {checkoutStep > 1 ? '✓' : '1'}
+                </div>
+                <div className={`wizard-step-indicator ${checkoutStep >= 2 ? 'active' : ''} ${checkoutStep > 2 ? 'completed' : ''}`}>
+                  {checkoutStep > 2 ? '✓' : '2'}
+                </div>
+                <div className={`wizard-step-indicator ${checkoutStep >= 3 ? 'active' : ''}`}>
+                  3
+                </div>
               </div>
-              <div style={{ height: '8px', background: 'rgba(255,255,255,0.05)', borderRadius: '4px', overflow: 'hidden' }}>
-                <div style={{
-                  width: `${Math.min(100, (streamerInfo.goal.current / streamerInfo.goal.target) * 100)}%`,
-                  height: '100%',
-                  background: 'linear-gradient(90deg, var(--color-primary), var(--color-secondary))'
-                }}></div>
+
+              {/* STEP 1: Donation Form */}
+              {checkoutStep === 1 && (
+                <form onSubmit={handleDetailsSubmit}>
+                  <div className="steam-neon-card-title">
+                    <Coins size={20} style={{ color: 'var(--color-primary)' }} /> Donation Checkout Details
+                  </div>
+
+                  <div className="steam-input-group">
+                    <label>Your Name / Alias</label>
+                    <div className="steam-input-wrapper">
+                      <span className="steam-input-icon"><User size={16} /></span>
+                      <input 
+                        type="text" 
+                        value={name} 
+                        onChange={e => setName(e.target.value)} 
+                        required 
+                        placeholder="Enter your nickname"
+                      />
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: '15px' }}>
+                    <div className="steam-input-group">
+                      <label>Currency</label>
+                      <div className="steam-input-wrapper input-without-icon">
+                        <select
+                          value={currency}
+                          onChange={e => {
+                            const newCur = e.target.value;
+                            setCurrency(newCur);
+                            if (newCur === 'KHR') {
+                              setAmount('4000');
+                            } else {
+                              setAmount('10');
+                            }
+                          }}
+                        >
+                          <option value="USD">USD ($)</option>
+                          <option value="KHR">KHR (៛)</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="steam-input-group">
+                      <label>Donation Amount</label>
+                      <div className="steam-input-wrapper input-without-icon">
+                        <input 
+                          type="number" 
+                          min={currency === 'KHR' ? '100' : '0.01'} 
+                          step={currency === 'KHR' ? '100' : '0.01'}
+                          value={amount} 
+                          onChange={e => setAmount(e.target.value)} 
+                          required 
+                          placeholder={currency === 'KHR' ? 'e.g. 4000' : 'e.g. 10.00'}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="steam-input-group">
+                    <label>Your Message (will appear on stream!)</label>
+                    <div className="steam-input-wrapper">
+                      <span className="steam-input-icon"><MessageSquare size={16} style={{ marginTop: '-24px' }} /></span>
+                      <textarea 
+                        rows="4" 
+                        value={message} 
+                        onChange={e => setMessage(e.target.value)} 
+                        placeholder="Add a message to your donation..."
+                      />
+                    </div>
+                  </div>
+
+                  <button type="submit" className="steam-neon-btn steam-neon-btn-primary" style={{ marginTop: '10px' }}>
+                    Choose Payment Method <ChevronRight size={16} />
+                  </button>
+                </form>
+              )}
+
+              {/* STEP 2: Payment Selector */}
+              {checkoutStep === 2 && (
+                <div>
+                  <div className="steam-neon-card-title">
+                    <ShieldCheck size={20} style={{ color: 'var(--color-primary)' }} /> Select Payment Method
+                  </div>
+
+                  <p style={{ color: 'var(--color-text-secondary)', fontSize: '14px', marginBottom: '20px' }}>
+                    Select how you would like to securely transfer your donation to <strong>{streamerName}</strong>.
+                  </p>
+
+                  <div className="payment-selector-tabs">
+                    {activeMethod === 'aba' ? (
+                      <div 
+                        className={`payment-tab-btn active`}
+                        onClick={() => setPayMethod('aba_merchant')}
+                        style={{ flex: 1, textAlign: 'center' }}
+                      >
+                        <span className="payment-tab-btn-icon">💳</span>
+                        <span>ABA PAYWAY</span>
+                        <span style={{ fontSize: '9px', opacity: 0.7 }}>Secure Merchant Link</span>
+                      </div>
+                    ) : (
+                      <>
+                        <div 
+                          className={`payment-tab-btn ${payMethod === 'aba' ? 'active' : ''}`}
+                          onClick={() => setPayMethod('aba')}
+                        >
+                          <span className="payment-tab-btn-icon">💳</span>
+                          <span>ABA PAY</span>
+                          <span style={{ fontSize: '9px', opacity: 0.7 }}>Mobile App link</span>
+                        </div>
+
+                        <div 
+                          className={`payment-tab-btn ${payMethod === 'khqr' ? 'active' : ''}`}
+                          onClick={() => setPayMethod('khqr')}
+                        >
+                          <span className="payment-tab-btn-icon">📲</span>
+                          <span>Universal KHQR</span>
+                          <span style={{ fontSize: '9px', opacity: 0.7 }}>Scan with any bank</span>
+                        </div>
+
+                        <div 
+                          className={`payment-tab-btn ${payMethod === 'card' ? 'active' : ''}`}
+                          onClick={() => setPayMethod('card')}
+                        >
+                          <span className="payment-tab-btn-icon">🌐</span>
+                          <span>Credit Card</span>
+                          <span style={{ fontSize: '9px', opacity: 0.7 }}>PayWay secure card</span>
+                        </div>
+                      </>
+                    )}
+                  </div>
+
+                  <div style={{ background: 'rgba(23, 26, 33, 0.5)', padding: '16px', borderRadius: '8px', border: '1px solid rgba(42, 71, 94, 0.4)', marginBottom: '24px' }}>
+                    {payMethod === 'aba_merchant' && (
+                      <div>
+                        <h4 style={{ color: '#fff', fontSize: '15px', marginBottom: '6px' }}>ABA PayWay Merchant Link</h4>
+                        <p style={{ color: 'var(--color-text-secondary)', fontSize: '13px' }}>
+                          Checkout directly via the streamer's official ABA Merchant Link. You can pay with your ABA Mobile app or any credit card.
+                        </p>
+                      </div>
+                    )}
+                    {payMethod === 'aba' && (
+                      <div>
+                        <h4 style={{ color: '#fff', fontSize: '15px', marginBottom: '6px' }}>Direct ABA Mobile App checkout</h4>
+                        <p style={{ color: 'var(--color-text-secondary)', fontSize: '13px' }}>
+                          This will generate a payment link that instantly redirects to your ABA Mobile app on smartphone. Once verified, your alert goes live!
+                        </p>
+                      </div>
+                    )}
+                    {payMethod === 'khqr' && (
+                      <div>
+                        <h4 style={{ color: '#fff', fontSize: '15px', marginBottom: '6px' }}>Universal KHQR payment</h4>
+                        <p style={{ color: 'var(--color-text-secondary)', fontSize: '13px' }}>
+                          Generates a standardized Bakong KHQR code. Scan with ABA Mobile, Acleda Mobile, Wing, or any Cambodian banking app to pay.
+                        </p>
+                      </div>
+                    )}
+                    {payMethod === 'card' && (
+                      <div>
+                        <h4 style={{ color: '#fff', fontSize: '15px', marginBottom: '6px' }}>Secure credit or debit card</h4>
+                        <p style={{ color: 'var(--color-text-secondary)', fontSize: '13px' }}>
+                          Checkout using Visa, Mastercard, or UnionPay credit card via a secure simulated PayWay card processing gateway.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+                    <button 
+                      className="steam-neon-btn steam-neon-btn-secondary" 
+                      onClick={() => setCheckoutStep(1)}
+                      disabled={loading}
+                    >
+                      <ChevronLeft size={16} /> Back to Details
+                    </button>
+                    <button 
+                      className="steam-neon-btn steam-neon-btn-primary" 
+                      onClick={initiatePayment}
+                      disabled={loading}
+                    >
+                      {loading ? 'Initiating...' : 'Proceed to Pay'} <ChevronRight size={16} />
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* STEP 3: QR Code scan or Card processing */}
+              {checkoutStep === 3 && (
+                <div>
+                  <div className="steam-neon-card-title">
+                    <ShieldCheck size={20} style={{ color: 'var(--color-primary)' }} /> Secure Checkout Portal
+                  </div>
+
+                  {/* Option 3C: ABA PayWay Merchant Link redirection */}
+                  {payMethod === 'aba_merchant' && (
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '15px' }}>
+                      <p style={{ color: 'var(--color-text-secondary)', fontSize: '14px', textAlign: 'center' }}>
+                        To complete your donation, click the link below to open the streamer's secure ABA PayWay portal. Complete the transaction there, then click the confirmation button below.
+                      </p>
+
+                      <div style={{ background: 'rgba(0, 240, 255, 0.05)', border: '1px solid rgba(0, 240, 255, 0.2)', borderRadius: '8px', padding: '12px', width: '100%', textAlign: 'center', marginBottom: '10px' }}>
+                        <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>Amount to Pay</div>
+                        <div style={{ fontSize: '24px', fontWeight: 'bold', color: 'var(--color-primary)', fontFamily: 'monospace', marginTop: '4px' }}>
+                          {formatCurrency(parseFloat(amount), currency)}
+                        </div>
+                      </div>
+
+                      {paymentCode && (
+                        <div style={{ background: 'rgba(255, 180, 0, 0.05)', border: '1px dashed rgba(255, 180, 0, 0.3)', borderRadius: '8px', padding: '12px', width: '100%', textAlign: 'center', marginBottom: '5px' }}>
+                          <div style={{ fontSize: '11px', color: '#ffb400', fontWeight: 'bold' }}>⚠️ REQUIRED ABA TRANSACTION DESCRIPTION</div>
+                          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', marginTop: '6px' }}>
+                            <span style={{ fontSize: '20px', fontWeight: 'bold', color: '#fff', fontFamily: 'monospace', letterSpacing: '1px' }}>
+                              {paymentCode}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                navigator.clipboard.writeText(paymentCode);
+                                alert('Code copied! Please paste it in your ABA app description field.');
+                              }}
+                              style={{
+                                background: 'rgba(255,255,255,0.05)',
+                                border: '1px solid rgba(255,255,255,0.1)',
+                                color: '#fff',
+                                padding: '2px 8px',
+                                borderRadius: '4px',
+                                fontSize: '10px',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              Copy
+                            </button>
+                          </div>
+                          <div style={{ fontSize: '10px', color: 'var(--color-text-muted)', marginTop: '4px' }}>
+                            Put this code in ABA Transfer description so the Telegram bot can instantly trigger the alert.
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Open ABA PayWay Button */}
+                      <a
+                        href={currency === 'KHR' ? streamerInfo?.settings?.abaMerchantLinkKhr : streamerInfo?.settings?.abaMerchantLinkUsd}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="steam-neon-btn steam-neon-btn-primary"
+                        style={{
+                          width: '100%',
+                          textDecoration: 'none',
+                          textAlign: 'center',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '10px',
+                          padding: '14px'
+                        }}
+                      >
+                        💳 Open ABA PayWay to Pay
+                      </a>
+
+                      <div style={{ width: '100%', borderBottom: '1px dashed var(--color-border)', margin: '10px 0' }}></div>
+
+                      {/* Manual Confirmation Button */}
+                      <button
+                        className="steam-neon-btn"
+                        style={{
+                          width: '100%',
+                          background: 'linear-gradient(90deg, #00ff87, #60efff)',
+                          color: '#090a0f',
+                          fontWeight: 'bold',
+                          padding: '14px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '8px',
+                          border: 'none',
+                          boxShadow: '0 0 15px rgba(0, 255, 135, 0.3)'
+                        }}
+                        onClick={async () => {
+                          setLoading(true);
+                          try {
+                            const res = await fetch('/api/donate/confirm', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ 
+                                md5: transactionMd5,
+                                remark: `[ABA PayWay] ${message.trim()}`
+                              })
+                            });
+                            const d = await res.json();
+                            if (res.ok && d.success) {
+                              setSuccessDetails({ name, amount: parseFloat(amount) || 0, currency });
+                              setSuccess(true);
+                              setCheckoutStep(1);
+                              setTransactionMd5('');
+                              setName('');
+                              setAmount('');
+                              setMessage('');
+                            } else {
+                              alert(d.error || 'Confirmation failed. Try again.');
+                            }
+                          } catch (e) {
+                            alert('Network error. Try again.');
+                          } finally {
+                            setLoading(false);
+                          }
+                        }}
+                        disabled={loading}
+                      >
+                        {loading ? 'Processing...' : "✅ I've Paid — Alert Stream"}
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Option 3A: ABA/Bakong QR Scan */}
+                  {(payMethod === 'aba' || payMethod === 'khqr') && (
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                      <p style={{ color: 'var(--color-text-secondary)', fontSize: '13px', textAlign: 'center', marginBottom: '15px' }}>
+                        Scan the KHQR below with your banking app or tap direct mobile links to checkout.
+                      </p>
+
+                      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'center', marginBottom: '20px' }}>
+                        {qrString && (payMethod === 'khqr' || payMethod === 'aba') && (
+                          <a
+                            href={`https://pay.ababank.com/khqr/${encodeURIComponent(qrString)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{
+                              background: '#005C8A',
+                              color: '#fff',
+                              padding: '8px 16px',
+                              borderRadius: '8px',
+                              fontSize: '12px',
+                              fontWeight: 'bold',
+                              textDecoration: 'none',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              boxShadow: '0 2px 10px rgba(0,92,138,0.4)',
+                            }}
+                          >
+                            💳 Open in ABA
+                          </a>
+                        )}
+                        
+                        {qrString && payMethod === 'khqr' && (
+                          <a
+                            href={`https://api-bakong.nbc.gov.kh/v1/generate_deeplink_by_qr?qr=${encodeURIComponent(qrString)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{
+                              background: '#E21836',
+                              color: '#fff',
+                              padding: '8px 16px',
+                              borderRadius: '8px',
+                              fontSize: '12px',
+                              fontWeight: 'bold',
+                              textDecoration: 'none',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              boxShadow: '0 2px 10px rgba(226,24,54,0.4)',
+                            }}
+                          >
+                            📱 Open in Bakong
+                          </a>
+                        )}
+                      </div>
+
+                      <div className="qr-code-img" style={{ border: '2px solid var(--color-primary)', width: '220px', height: '220px', display: 'flex', justifyContent: 'center', alignItems: 'center', background: '#fff', padding: '10px' }}>
+                        {qrDataUrl ? (
+                          <img src={qrDataUrl} alt="KHQR payment code" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                        ) : (
+                          <div style={{ color: '#000', fontSize: '13px' }}>Generating Code...</div>
+                        )}
+                      </div>
+
+                      <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#fff', margin: '15px 0 5px 0', fontFamily: 'monospace' }}>
+                        Amount: {formatCurrency(parseFloat(amount), currency)}
+                      </div>
+
+                      {isGeoBlocked ? (
+                        <div style={{ width: '100%', marginTop: '10px' }}>
+                          <div style={{ background: 'rgba(255,180,0,0.1)', border: '1px solid rgba(255,180,0,0.3)', borderRadius: '8px', padding: '12px', marginBottom: '15px', fontSize: '12px', color: '#ffb400', textAlign: 'center' }}>
+                            ⚠️ Auto-checking geo-blocked. Tap below to confirm payment completion manually.
+                          </div>
+                          <button
+                            className="steam-neon-btn steam-neon-btn-primary"
+                            onClick={async () => {
+                              try {
+                                const res = await fetch('/api/donate/confirm', {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ md5: transactionMd5 })
+                                });
+                                const d = await res.json();
+                                if (res.ok && d.success) {
+                                  setSuccessDetails({ name, amount: parseFloat(amount) || 0, currency });
+                                  setSuccess(true);
+                                  setCheckoutStep(1);
+                                  setTransactionMd5('');
+                                  setQrDataUrl('');
+                                  setQrString('');
+                                  setIsGeoBlocked(false);
+                                  setName('');
+                                  setAmount('');
+                                  setMessage('');
+                                } else {
+                                  alert(d.error || 'Confirmation failed. Try again.');
+                                }
+                              } catch (e) {
+                                alert('Network error. Try again.');
+                              }
+                            }}
+                          >
+                            ✅ I've Paid — Alert Stream
+                          </button>
+                        </div>
+                      ) : (
+                        <div style={{ textAlign: 'center', marginTop: '10px' }}>
+                          <p style={{ color: 'var(--color-primary)', fontSize: '13px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
+                            <span className="pulse-loader"></span> Waiting for bank confirmation...
+                          </p>
+                          <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginTop: '6px' }}>
+                            Expires in <span style={{ color: '#fff', fontWeight: 'bold', fontFamily: 'monospace' }}>{formatTime(timeLeft)}</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Option 3B: Credit Card checkout form simulation */}
+                  {payMethod === 'card' && (
+                    <div>
+                      {/* Physical Card Preview */}
+                      <div className="neon-credit-card">
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div className="card-chip"></div>
+                          <div className="card-type-logo">
+                            {cardNumber.startsWith('4') ? 'Visa' : cardNumber.startsWith('5') ? 'Mastercard' : 'PayWay'}
+                          </div>
+                        </div>
+                        <div className="card-number-display">
+                          {cardNumber ? formatCardNumber(cardNumber) : '•••• •••• •••• ••••'}
+                        </div>
+                        <div className="card-details-row">
+                          <div>
+                            <div className="card-holder-label">Card Holder</div>
+                            <div className="card-holder-value">{cardHolder ? cardHolder : 'YOUR FULL NAME'}</div>
+                          </div>
+                          <div>
+                            <div className="card-expiry-label">Expires</div>
+                            <div className="card-expiry-value">{cardExpiry ? cardExpiry : 'MM/YY'}</div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {cardError && (
+                        <div style={{ color: 'var(--color-secondary)', background: 'rgba(255, 0, 127, 0.1)', border: '1px solid rgba(255, 0, 127, 0.3)', padding: '10px', borderRadius: '6px', fontSize: '13px', marginBottom: '15px' }}>
+                          {cardError}
+                        </div>
+                      )}
+
+                      <form onSubmit={handleCardSubmit}>
+                        <div className="steam-input-group">
+                          <label>Cardholder Name</label>
+                          <div className="steam-input-wrapper">
+                            <span className="steam-input-icon"><User size={16} /></span>
+                            <input 
+                              type="text" 
+                              value={cardHolder} 
+                              onChange={e => setCardHolder(e.target.value.toUpperCase())}
+                              required 
+                              disabled={cardSubmitted}
+                              placeholder="e.g. SOK KANHA"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="steam-input-group">
+                          <label>Card Number</label>
+                          <div className="steam-input-wrapper">
+                            <span className="steam-input-icon"><CreditCard size={16} /></span>
+                            <input 
+                              type="text" 
+                              maxLength="19"
+                              value={cardNumber} 
+                              onChange={e => setCardNumber(formatCardNumber(e.target.value))}
+                              required 
+                              disabled={cardSubmitted}
+                              placeholder="4111 2222 3333 4444"
+                            />
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+                          <div className="steam-input-group">
+                            <label>Expiry Date</label>
+                            <div className="steam-input-wrapper input-without-icon">
+                              <input 
+                                type="text" 
+                                maxLength="5"
+                                value={cardExpiry} 
+                                onChange={e => setCardExpiry(formatExpiry(e.target.value))}
+                                required 
+                                disabled={cardSubmitted}
+                                placeholder="MM/YY"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="steam-input-group">
+                            <label>CVV / CVC</label>
+                            <div className="steam-input-wrapper input-without-icon">
+                              <input 
+                                type="password" 
+                                maxLength="3"
+                                value={cardCvv} 
+                                onChange={e => setCardCvv(e.target.value.replace(/[^0-9]/g, ''))}
+                                required 
+                                disabled={cardSubmitted}
+                                placeholder="123"
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        <button 
+                          type="submit" 
+                          className="steam-neon-btn steam-neon-btn-primary" 
+                          style={{ marginTop: '10px' }}
+                          disabled={cardSubmitted}
+                        >
+                          {cardSubmitted ? (
+                            <>
+                              <span className="pulse-loader"></span> Securely Authenticating...
+                            </>
+                          ) : (
+                            <>Confirm & Pay {formatCurrency(parseFloat(amount), currency)}</>
+                          )}
+                        </button>
+                      </form>
+                    </div>
+                  )}
+
+                  <button 
+                    className="steam-neon-btn steam-neon-btn-secondary" 
+                    style={{ marginTop: '15px' }}
+                    onClick={() => {
+                      setCheckoutStep(2);
+                      setTransactionMd5('');
+                    }}
+                    disabled={cardSubmitted}
+                  >
+                    <ChevronLeft size={16} /> Cancel Payment
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            /* Achievement success unlocked banner */
+            <div style={{ textAlign: 'center' }}>
+              <div className="steam-achievement-unlocked-banner">
+                <div className="achievement-icon-wrapper">
+                  <div className="achievement-icon">
+                    <Trophy style={{ color: '#ffd700' }} size={32} />
+                  </div>
+                </div>
+                <div className="achievement-details">
+                  <div className="achievement-header">Achievement Unlocked</div>
+                  <div className="achievement-name">Generous Patron</div>
+                  <div className="achievement-desc">
+                    {successDetails.name} sent {formatCurrency(successDetails.amount, successDetails.currency)} to {streamerName}!
+                  </div>
+                </div>
+              </div>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '15px' }}>
+                <p style={{ color: 'var(--color-text-secondary)', fontSize: '14px' }}>
+                  Your tip has been credited to their account. The overlay alert and TTS voice will trigger live on stream!
+                </p>
+                <button 
+                  className="steam-neon-btn steam-neon-btn-secondary" 
+                  style={{ maxWidth: '280px' }}
+                  onClick={() => setSuccess(false)}
+                >
+                  Send Another Tip
+                </button>
               </div>
             </div>
           )}
-
-          <form onSubmit={handleSubmit}>
-            <div className="form-group">
-              <label>Your Name / Alias</label>
-              <input 
-                type="text" 
-                value={name} 
-                onChange={e => setName(e.target.value)} 
-                required 
-                placeholder="Enter your nickname"
-                disabled={loading}
-              />
-            </div>
-            
-            <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: '15px' }}>
-              <div className="form-group">
-                <label>Currency</label>
-                <select
-                  value={currency}
-                  onChange={e => {
-                    const newCur = e.target.value;
-                    setCurrency(newCur);
-                    if (newCur === 'KHR') {
-                      setAmount('4000');
-                    } else {
-                      setAmount('10');
-                    }
-                  }}
-                  disabled={loading}
-                  style={{ background: '#171923', height: '46px' }}
-                >
-                  <option value="USD">USD ($)</option>
-                  <option value="KHR">KHR (៛)</option>
-                </select>
-              </div>
-              <div className="form-group">
-                <label>Donation Amount</label>
-                <input 
-                  type="number" 
-                  min={currency === 'KHR' ? '100' : '0.01'} 
-                  step={currency === 'KHR' ? '100' : '0.01'}
-                  value={amount} 
-                  onChange={e => setAmount(e.target.value)} 
-                  required 
-                  placeholder={currency === 'KHR' ? 'Amount (e.g. 4000)' : 'Amount (e.g. 5.00)'}
-                  disabled={loading}
-                  style={{ height: '46px' }}
-                />
-              </div>
-            </div>
-
-            <div className="form-group">
-              <label>Your Message (will appear on stream!)</label>
-              <textarea 
-                rows="4" 
-                value={message} 
-                onChange={e => setMessage(e.target.value)} 
-                placeholder="Add a message to your donation..."
-                disabled={loading}
-              />
-            </div>
-            <button type="submit" className="btn-primary" style={{ width: '100%', padding: '14px', fontSize: '16px', marginTop: '10px' }} disabled={loading}>
-              <Coins size={18} /> {loading ? 'Generating QR Code...' : 'Support Streamer'}
-            </button>
-          </form>
         </div>
-      ) : (
-        <div className="donation-form-container" style={{ textAlign: 'center' }}>
-          <div className="success-checkmark">✓</div>
-          <h2 style={{ fontFamily: 'var(--font-display)', color: 'var(--color-success)', fontSize: '28px', margin: '20px 0 10px' }}>Thank You!</h2>
-          <p style={{ color: 'var(--color-text-secondary)', marginBottom: '30px' }}>Your donation has been sent to {streamerName} and will appear live on stream momentarily!</p>
-          <button className="btn-secondary" onClick={() => setSuccess(false)}>Send Another Tip</button>
-        </div>
-      )}
 
-      {/* QR Code Modal for Real Payment */}
-      {qrCodeOpen && (
-        <div className="modal-overlay">
-          <div className="modal-content" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', maxWidth: '420px', padding: '30px' }}>
-            <h3 style={{ fontFamily: 'var(--font-display)', color: '#fff', fontSize: '22px', margin: '0 0 10px', textAlign: 'center' }}>
-              Scan to Pay with ABA, Acleda, Bakong & more
-            </h3>
-            <p style={{ color: 'var(--color-text-secondary)', fontSize: '14px', textAlign: 'center', marginBottom: '16px' }}>
-              Scan the QR code using ABA Mobile, Acleda Mobile, Bakong, or any banking app in Cambodia that supports KHQR to complete your donation to {streamerName}.
-            </p>
-            
-            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'center', marginBottom: '20px' }}>
-              {/* Bakong deep link: opens bakong app directly */}
-              {qrString && (
-                <a
-                  href={`https://api-bakong.nbc.gov.kh/v1/generate_deeplink_by_qr?qr=${encodeURIComponent(qrString)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{
-                    background: '#E21836',
-                    color: '#fff',
-                    padding: '8px 16px',
-                    borderRadius: '8px',
-                    fontSize: '13px',
-                    fontWeight: 'bold',
-                    textDecoration: 'none',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    boxShadow: '0 2px 10px rgba(226,24,54,0.4)',
-                    transition: 'opacity 0.2s'
-                  }}
-                >
-                  📱 Open in Bakong
-                </a>
-              )}
-              {/* ABA deep link: opens ABA Mobile with KHQR pre-filled */}
-              {qrString && (
-                <a
-                  href={`https://pay.ababank.com/khqr/${encodeURIComponent(qrString)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{
-                    background: '#005C8A',
-                    color: '#fff',
-                    padding: '8px 16px',
-                    borderRadius: '8px',
-                    fontSize: '13px',
-                    fontWeight: 'bold',
-                    textDecoration: 'none',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    boxShadow: '0 2px 10px rgba(0,92,138,0.4)',
-                    transition: 'opacity 0.2s'
-                  }}
-                >
-                  💳 Open in ABA
-                </a>
-              )}
-              <span style={{ 
-                background: '#0B3B60', 
-                color: '#fff', 
-                border: '1px solid #e5a93b',
-                padding: '8px 16px', 
-                borderRadius: '8px', 
-                fontSize: '13px', 
-                fontWeight: 'bold',
-                opacity: 0.7
-              }}>Acleda ✓</span>
-            </div>
-            
-            <div className="qr-code-img" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#fff', padding: '15px', borderRadius: '12px', boxShadow: '0 8px 30px rgba(0,0,0,0.5)', border: '2px solid var(--color-primary)' }}>
-              {qrDataUrl ? (
-                <img src={qrDataUrl} alt="KHQR Payment Code" style={{ width: '200px', height: '200px', objectFit: 'contain' }} />
-              ) : (
-                <div style={{ width: '200px', height: '200px', display: 'flex', justifyContent: 'center', alignItems: 'center', color: '#090a0f' }}>
-                  Loading QR Code...
+        {/* Right Side: Streamer Info Panel */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <div className="steam-neon-card">
+            <div className="streamer-badge-profile">
+              <div className="streamer-avatar">
+                <div className="streamer-avatar-img">
+                  {streamerName ? streamerName.charAt(0).toUpperCase() : 'G'}
                 </div>
-              )}
-              <div style={{ marginTop: '12px', fontSize: '18px', fontWeight: 'bold', color: '#090a0f', fontFamily: 'monospace' }}>
-                Amount: {formatCurrency(parseFloat(amount), currency)}
               </div>
+              <div className="streamer-name">{streamerName}</div>
+              <div className="streamer-subtext">Verified KheangAlert Streamer</div>
             </div>
-            
-            {isGeoBlocked ? (
-              <div style={{ marginTop: '20px', textAlign: 'center' }}>
-                <div style={{ 
-                  background: 'rgba(255,180,0,0.1)', 
-                  border: '1px solid rgba(255,180,0,0.3)', 
-                  borderRadius: '10px', 
-                  padding: '14px 20px',
-                  marginBottom: '16px',
-                  fontSize: '13px',
-                  color: '#ffb400'
-                }}>
-                  ⚠️ Auto-verification unavailable (server outside Cambodia).<br/>
-                  After paying with ABA/Bakong app, tap the button below to confirm.
+
+            {streamerInfo?.goal?.active ? (
+              <div className="steam-level-container">
+                <div className="steam-level-header">
+                  <span className="steam-level-label">STREAM LEVEL GOAL</span>
+                  <span className="steam-level-value">
+                    {Math.round((streamerInfo.goal.current / streamerInfo.goal.target) * 100)}%
+                  </span>
                 </div>
-                <button
-                  style={{
-                    width: '100%',
-                    padding: '14px',
-                    background: 'linear-gradient(135deg, #00c853, #1de9b6)',
-                    border: 'none',
-                    borderRadius: '10px',
-                    color: '#000',
-                    fontSize: '16px',
-                    fontWeight: 'bold',
-                    cursor: 'pointer',
-                    boxShadow: '0 4px 20px rgba(0,200,83,0.4)',
-                  }}
-                  onClick={async () => {
-                    try {
-                      const res = await fetch('/api/donate/confirm', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ md5: transactionMd5 })
-                      });
-                      const d = await res.json();
-                      if (res.ok && d.success) {
-                        setSuccess(true);
-                        setQrCodeOpen(false);
-                        setTransactionMd5('');
-                        setQrDataUrl('');
-                        setQrString('');
-                        setIsGeoBlocked(false);
-                        setName('');
-                        setAmount('');
-                        setMessage('');
-                      } else {
-                        alert(d.error || 'Confirmation failed. Please try again.');
-                      }
-                    } catch (e) {
-                      alert('Network error. Please try again.');
-                    }
-                  }}
-                >
-                  ✅ I've Paid — Show Alert on Stream
-                </button>
+                <div className="steam-level-progress-bg">
+                  <div 
+                    className="steam-level-progress-fill" 
+                    style={{ width: `${Math.min(100, (streamerInfo.goal.current / streamerInfo.goal.target) * 100)}%` }}
+                  ></div>
+                  <div className="goal-percent">
+                    XP {streamerInfo.goal.title}
+                  </div>
+                </div>
+                <div className="steam-level-stats">
+                  <span>Raised: {formatCurrency(streamerInfo.goal.current)}</span>
+                  <span>Goal: {formatCurrency(streamerInfo.goal.target)}</span>
+                </div>
               </div>
             ) : (
-              <>
-                <p style={{ color: 'var(--color-primary)', fontSize: '14px', fontWeight: 'bold', margin: '20px 0 5px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span className="pulse-loader"></span> Waiting for payment...
-                </p>
-                <div style={{ fontSize: '13px', color: 'var(--color-text-muted)', background: 'rgba(255,255,255,0.05)', padding: '6px 12px', borderRadius: '20px', marginTop: '5px' }}>
-                  QR code expires in <span style={{ color: '#fff', fontWeight: 'bold', fontFamily: 'monospace' }}>{formatTime(timeLeft)}</span>
-                </div>
-              </>
-            )}
-            
-            {errorText && (
-              <div style={{ color: 'var(--color-danger)', fontSize: '13px', marginTop: '10px', fontWeight: 'bold' }}>
-                {errorText}
+              <div style={{ fontSize: '13px', color: 'var(--color-text-muted)', textAlign: 'center', padding: '15px 0' }}>
+                No active Level XP goals for this streamer.
               </div>
             )}
-            
-            <button className="btn-secondary" style={{ marginTop: '20px', width: '100%', borderColor: 'rgba(255,255,255,0.1)' }} onClick={() => { setQrCodeOpen(false); setIsGeoBlocked(false); }}>
-              Cancel Payment
-            </button>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--color-text-secondary)', fontSize: '12px', borderTop: '1px solid rgba(42, 71, 94, 0.4)', paddingTop: '15px', justifyContent: 'center' }}>
+              <ShieldCheck size={14} style={{ color: 'var(--color-success)' }} />
+              <span>Secure PayWay tunnel connection.</span>
+            </div>
           </div>
         </div>
-      )}
+      </div>
+
+      {/* Developer Contact Footer */}
+      <footer style={{ marginTop: 'auto', textAlign: 'center', padding: '24px', fontSize: '12px', color: 'var(--color-text-muted)', borderTop: '1px solid rgba(255,255,255,0.03)', background: '#090a0f' }}>
+        <a href="https://t.me/KheangNubb" target="_blank" rel="noopener noreferrer"
+          style={{ color: '#29b6f6', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '5px', fontWeight: '500' }}>
+          ✈️ Contact Developer on Telegram
+        </a>
+        <span style={{ margin: '0 8px', opacity: 0.3 }}>·</span>
+        <span>Powered by StreamNeon PayWay Gateway</span>
+      </footer>
     </div>
-    {/* Developer Contact Footer */}
-    <div style={{ textAlign: 'center', padding: '16px', fontSize: '12px', color: 'var(--color-text-muted)', borderTop: '1px solid rgba(255,255,255,0.05)', background: '#090a0f' }}>
-      <a href="https://t.me/KheangNubb" target="_blank" rel="noopener noreferrer"
-        style={{ color: '#29b6f6', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '5px', fontWeight: '500' }}>
-        ✈️ Contact Developer on Telegram
-      </a>
-      <span style={{ margin: '0 8px', opacity: 0.3 }}>·</span>
-      <span>Powered by KheangAlert</span>
-    </div>
-    </>
   );
 }

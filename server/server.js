@@ -10,6 +10,8 @@ const { v4: uuidv4 } = require('uuid');
 const { BakongKHQR, khqrData, IndividualInfo } = require('bakong-khqr');
 const QRCode = require('qrcode');
 const https = require('https');
+const { EdgeTTS } = require('edge-tts-universal');
+
 
 const app = express();
 const server = http.createServer(app);
@@ -346,10 +348,8 @@ app.post('/api/settings/test-bakong', authenticateUser, async (req, res) => {
       "Phnom Penh",
       {
         currency: khqrData.currency.usd,
-        amount: 0.01,
         storeLabel: "Test Store",
-        terminalLabel: "Test Terminal",
-        expirationTimestamp: Date.now() + 60 * 1000
+        terminalLabel: "Test Terminal"
       }
     );
 
@@ -514,11 +514,65 @@ app.get('/api/donate/streamer/:username', (req, res) => {
       gifUrl: user.settings?.gifUrl,
       soundUrl: user.settings?.soundUrl,
       soundVolume: user.settings?.soundVolume,
-      donationTextTemplate: user.settings?.donationTextTemplate
+      donationTextTemplate: user.settings?.donationTextTemplate,
+      abaMerchantLinkUsd: user.settings?.abaMerchantLinkUsd || '',
+      abaMerchantLinkKhr: user.settings?.abaMerchantLinkKhr || '',
+      usdPaymentMethod: user.settings?.usdPaymentMethod || 'bakong',
+      khrPaymentMethod: user.settings?.khrPaymentMethod || 'bakong',
+      bakongAccountId: user.bakongAccountId || ''
     },
     goal: user.goal
   });
 });
+
+// --- PUBLIC TEXT-TO-SPEECH PROXY API ---
+app.get('/api/tts', async (req, res) => {
+  const { text, voice } = req.query;
+  if (!text) {
+    return res.status(400).send('Text parameter is required');
+  }
+
+  // Map user selections to neural Edge voices
+  let selectedVoice = 'km-KH-SreymomNeural'; // Fallback
+  let options = {
+    volume: '+100%'
+  };
+
+  if (voice === 'Piseth') {
+    selectedVoice = 'km-KH-PisethNeural';
+  } else if (voice === 'Sreymom') {
+    selectedVoice = 'km-KH-SreymomNeural';
+  } else if (voice === 'Chingchang') {
+    // Map Chingchang to a funny high-pitched, fast version of the Khmer Piseth voice
+    // to allow Khmer text to be processed successfully and sound like a funny meme voice.
+    selectedVoice = 'km-KH-PisethNeural';
+    options = {
+      pitch: '+50Hz',
+      rate: '+25%',
+      volume: '+100%'
+    };
+  } else if (voice) {
+    selectedVoice = voice;
+  }
+
+  try {
+    const tts = new EdgeTTS(text, selectedVoice, options);
+    const result = await tts.synthesize();
+    const arrayBuffer = await result.audio.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+
+    res.set({
+      'Content-Type': 'audio/mpeg',
+      'Content-Length': buffer.length,
+      'Cache-Control': 'public, max-age=86400'
+    });
+    res.send(buffer);
+  } catch (error) {
+    console.error('Error generating Edge TTS speech:', error);
+    res.status(500).send('Failed to generate speech');
+  }
+});
+
 
 // Initiate Donation - Generates KHQR and caches pending details
 app.post('/api/donate/initiate', async (req, res) => {
@@ -550,6 +604,31 @@ app.post('/api/donate/initiate', async (req, res) => {
     return res.status(404).json({ error: 'Streamer account not found' });
   }
 
+  const activeMethod = reqCurrency === 'KHR'
+    ? (user.settings?.khrPaymentMethod || 'bakong')
+    : (user.settings?.usdPaymentMethod || 'bakong');
+
+  if (activeMethod === 'aba') {
+    const md5 = crypto.randomBytes(16).toString('hex');
+    const code = Math.floor(1000 + Math.random() * 9000);
+    const paymentCode = `#${code}`;
+    pendingDonations[md5] = {
+      userId: user.id,
+      username: user.username,
+      name: name.trim(),
+      amount: numericAmount,
+      currency: reqCurrency,
+      message: (message || '').trim(),
+      paymentCode,
+      timestamp: new Date().toISOString()
+    };
+    return res.json({
+      success: true,
+      md5,
+      paymentCode
+    });
+  }
+
   const account = user.bakongAccountId || process.env.ACCOUNT;
   if (!account) {
     return res.status(500).json({ error: 'Streamer has not configured their Bakong Account ID yet' });
@@ -562,10 +641,8 @@ app.post('/api/donate/initiate', async (req, res) => {
       "Phnom Penh",
       {
         currency: reqCurrency === 'KHR' ? khqrData.currency.khr : khqrData.currency.usd,
-        amount: numericAmount,
         storeLabel: "Kheang Alert",
-        terminalLabel: "Overlay",
-        expirationTimestamp: Date.now() + 5 * 60 * 1000 // 5 minutes validity
+        terminalLabel: "Overlay"
       }
     );
 
@@ -641,6 +718,7 @@ app.get('/api/donate/check/:md5', async (req, res) => {
 
     if (checkResponse && checkResponse.responseCode === 0) {
       const usdAmount = pending.currency === 'KHR' ? parseFloat((pending.amount / 4000).toFixed(2)) : pending.amount;
+      const bankRemark = checkResponse.data?.remark || pending.message || '';
 
       const newDonation = {
         id: uuidv4(),
@@ -648,7 +726,7 @@ app.get('/api/donate/check/:md5', async (req, res) => {
         name: pending.name,
         amount: pending.amount,
         currency: pending.currency,
-        message: pending.message,
+        message: bankRemark,
         timestamp: new Date().toISOString()
       };
 
@@ -706,7 +784,7 @@ app.get('/api/donate/check/:md5', async (req, res) => {
 
 // Confirm browser-verified transaction
 app.post('/api/donate/confirm', async (req, res) => {
-  const { md5 } = req.body;
+  const { md5, remark } = req.body;
   if (!md5) {
     return res.status(400).json({ error: 'MD5 hash is required' });
   }
@@ -731,7 +809,7 @@ app.post('/api/donate/confirm', async (req, res) => {
       name: pending.name,
       amount: pending.amount,
       currency: pending.currency,
-      message: pending.message,
+      message: remark || pending.message || '',
       timestamp: new Date().toISOString()
     };
 
@@ -772,6 +850,107 @@ app.post('/api/donate/confirm', async (req, res) => {
     console.error("Error confirming donation status:", error);
     res.status(500).json({ error: 'Failed to confirm transaction status' });
   }
+});
+
+// Webhook for Telegram bot notification integration
+app.post('/api/donate/webhook', (req, res) => {
+  const { amount, currency, remark } = req.body;
+  if (amount === undefined || !currency) {
+    return res.status(400).json({ error: 'Missing amount or currency in payload' });
+  }
+
+  const reqCurrency = currency.toUpperCase();
+  const numericAmount = parseFloat(amount);
+
+  console.log(`[Webhook Received] Amount: ${numericAmount}, Currency: ${reqCurrency}, Remark: ${remark}`);
+
+  // Find pending transaction matching the payment code or fallback to matching by exact amount + currency
+  let matchedMd5 = null;
+  
+  // 1. Search by paymentCode inside the remark
+  if (remark) {
+    for (const [md5, pending] of Object.entries(pendingDonations)) {
+      if (pending.currency === reqCurrency && pending.paymentCode && remark.includes(pending.paymentCode)) {
+        matchedMd5 = md5;
+        break;
+      }
+    }
+  }
+
+  // 2. Fallback: Search by exact amount and currency if no code matches
+  if (!matchedMd5) {
+    const possibleMatches = [];
+    for (const [md5, pending] of Object.entries(pendingDonations)) {
+      if (pending.currency === reqCurrency && Math.abs(pending.amount - numericAmount) < 0.01) {
+        possibleMatches.push(md5);
+      }
+    }
+    // If there's exactly one pending donation of this amount, auto-confirm it
+    if (possibleMatches.length === 1) {
+      matchedMd5 = possibleMatches[0];
+    }
+  }
+
+  if (!matchedMd5) {
+    return res.status(404).json({ error: 'No matching pending donation found.' });
+  }
+
+  const pending = pendingDonations[matchedMd5];
+  const db = readDB();
+  const user = db.users.find(u => u.id === pending.userId);
+
+  if (!user) {
+    return res.status(404).json({ error: 'Streamer account not found' });
+  }
+
+  const usdAmount = pending.currency === 'KHR' ? parseFloat((pending.amount / 4000).toFixed(2)) : pending.amount;
+
+  const newDonation = {
+    id: uuidv4(),
+    userId: pending.userId,
+    name: pending.name,
+    amount: pending.amount,
+    currency: pending.currency,
+    message: pending.message || remark || '',
+    timestamp: new Date().toISOString()
+  };
+
+  db.donations.push(newDonation);
+  
+  const userIndex = db.users.findIndex(u => u.id === pending.userId);
+  if (userIndex !== -1 && db.users[userIndex].goal && db.users[userIndex].goal.active) {
+    db.users[userIndex].goal.current = parseFloat((db.users[userIndex].goal.current + usdAmount).toFixed(2));
+  }
+
+  writeDB(db);
+  const state = computeState(pending.userId);
+
+  // Trigger overlay alert
+  broadcast({
+    type: 'ALERT',
+    event: 'donation',
+    data: {
+      name: newDonation.name,
+      amount: newDonation.amount,
+      currency: newDonation.currency,
+      message: newDonation.message,
+      timestamp: newDonation.timestamp,
+      settings: user.settings
+    }
+  }, pending.username);
+
+  // Trigger state update
+  broadcast({ type: 'STATE_UPDATE', data: state }, pending.username);
+
+  delete pendingDonations[matchedMd5];
+
+  console.log(`[Webhook Confirmed] Matched and triggered alert for donor: ${newDonation.name}`);
+
+  return res.json({
+    success: true,
+    status: 'paid',
+    donation: newDonation
+  });
 });
 
 // Submit/Add Donation (Override / Simulator)

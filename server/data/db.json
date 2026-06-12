@@ -12,12 +12,16 @@
         "followTextTemplate": "{name} joined the neon crew!",
         "donationTextTemplate": "{name} sent {amount}!",
         "gifUrl": "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExOHlmd3gydzZ2ZWZtcnkyMnQ2ZnQ2b2x2eHA0YWxxMW4xOXV0ZnpxOCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9cw/Wwddh1z09oD2r4kQyU/giphy.gif",
-        "soundUrl": "https://assets.mixkit.co/active_storage/sfx/2869/2869-84.wav"
+        "soundUrl": "https://assets.mixkit.co/active_storage/sfx/2869/2869-84.wav",
+        "ttsEnabled": true,
+        "ttsVolume": 1,
+        "ttsLang": "km-KH",
+        "ttsVoiceURI": "Piseth"
       },
       "goal": {
         "title": "Upgrade Stream Mic",
         "target": 500,
-        "current": 337,
+        "current": 362,
         "active": true
       }
     },
@@ -38,14 +42,35 @@
         "bakongToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkYXRhIjp7ImlkIjoiMjUzNjE1OGIwYTE5NDFlZiJ9LCJpYXQiOjE3Nzg2NjM5MTIsImV4cCI6MTc4NjQzOTkxMn0.awzrSwXWqAYLz8KWH3ZSqpZ9igkYWt2Waw1dOwE8Rg0",
         "ttsEnabled": true,
         "ttsVolume": 1,
-        "ttsLang": "km-KH"
+        "ttsLang": "km-KH",
+        "ttsVoiceURI": "Chingchang",
+        "bakongEnv": "production",
+        "abaMerchantLinkUsd": "https://link.payway.com.kh/ABAPAYEc4564757",
+        "abaMerchantLinkKhr": "https://link.payway.com.kh/ABAPAY3D456474z",
+        "usdPaymentMethod": "aba",
+        "khrPaymentMethod": "aba",
+        "presetUsd1": "1",
+        "presetUsd2": "5",
+        "presetUsd3": "10",
+        "presetUsd4": "20",
+        "presetUsd5": "50",
+        "minUsd": "",
+        "maxUsd": "",
+        "presetKhr1": "4000",
+        "presetKhr2": "10000",
+        "presetKhr3": "20000",
+        "presetKhr4": "50000",
+        "presetKhr5": "100000",
+        "minKhr": "",
+        "maxKhr": ""
       },
       "goal": {
         "title": "បង់",
         "target": 1200,
-        "current": 0.11,
+        "current": 55.71,
         "active": true
-      }
+      },
+      "bakongEnv": "production"
     },
     {
       "id": "3485ef49-66a4-4d7e-aa11-b77a746c357d",
@@ -201,6 +226,58 @@
       "currency": "USD",
       "message": "Test confirm fallback",
       "timestamp": "2026-06-08T08:46:29.855Z"
+    },
+    {
+      "id": "ebed3465-dffc-40aa-97ea-6067542baa13",
+      "userId": "a4505978-bb71-433e-b738-b60e703f1294",
+      "name": "Sok Chamroeun",
+      "amount": 10,
+      "message": "Hello from a fan! keep it up!",
+      "timestamp": "2026-06-08T12:13:50.687Z"
+    },
+    {
+      "id": "ef5e769c-8a9c-415b-a106-3b83601cfea6",
+      "userId": "a4505978-bb71-433e-b738-b60e703f1294",
+      "name": "TesterDB",
+      "amount": 15,
+      "message": "Hello from DB",
+      "timestamp": "2026-06-08T12:21:34.892Z"
+    },
+    {
+      "id": "b524eb58-f358-4911-b811-d828e0965fe0",
+      "userId": "79e8a950-0c2f-4e21-93c5-132b5ed280fc",
+      "name": "Kheang",
+      "amount": 0.1,
+      "currency": "USD",
+      "message": "អាអូឡូហែងគិតអីហាអាសម្រាម",
+      "timestamp": "2026-06-08T12:35:14.445Z"
+    },
+    {
+      "id": "5d8ae6b6-945c-44c3-bef9-e5ab260f2d16",
+      "userId": "79e8a950-0c2f-4e21-93c5-132b5ed280fc",
+      "name": "Gamer FanGamer Fan",
+      "amount": 25.5,
+      "currency": "USD",
+      "message": "[ABA PayWay Card] Amazing stream! Keep it up!Amazing stream! Keep it up!",
+      "timestamp": "2026-06-08T12:43:07.875Z"
+    },
+    {
+      "id": "3c7a69b3-c311-4686-9b9b-5aec59900114",
+      "userId": "79e8a950-0c2f-4e21-93c5-132b5ed280fc",
+      "name": "Tester USD",
+      "amount": 15,
+      "currency": "USD",
+      "message": "[ABA PayWay] Testing custom ABA PayWay link",
+      "timestamp": "2026-06-08T12:50:36.765Z"
+    },
+    {
+      "id": "c688e1bc-85e5-462c-8443-234fe6dd4bd8",
+      "userId": "79e8a950-0c2f-4e21-93c5-132b5ed280fc",
+      "name": "Telegram Donor",
+      "amount": 15,
+      "currency": "USD",
+      "message": "Hello from Telegram Bot!",
+      "timestamp": "2026-06-08T12:53:39.828Z"
     }
   ],
   "followers": [
